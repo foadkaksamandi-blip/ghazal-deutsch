@@ -2,23 +2,32 @@ package com.foad.ghazaldeutsch;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
 
 import org.json.JSONObject;
 
@@ -28,23 +37,36 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Locale;
+import java.util.concurrent.Executor;
 
-public class MainActivity extends Activity {
+public class MainActivity extends FragmentActivity {
     private static final int REQUEST_NOTIFICATIONS = 4101;
     private static final int REQUEST_EXPORT = 4102;
     private static final int REQUEST_IMPORT = 4103;
+    private static final int REQUEST_AUDIO = 4104;
     private static final int MAX_BACKUP_BYTES = 2_000_000;
+    private static final long RELOCK_AFTER_MS = 15_000L;
+    private static final String SECURITY_PREFS = "ghazal_security";
 
     private WebView webView;
     private TextToSpeech textToSpeech;
+    private SpeechRecognizer speechRecognizer;
     private String pendingBackupJson;
+    private String pendingSpeechPrompt;
+    private SharedPreferences securityPreferences;
+    private boolean appUnlocked = false;
+    private boolean authInProgress = false;
+    private long backgroundedAt = 0L;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        securityPreferences = getSharedPreferences(SECURITY_PREFS, MODE_PRIVATE);
         configureSystemBars();
+        applyPrivacyScreen();
         createNotificationChannel();
         initializeTextToSpeech();
 
@@ -74,6 +96,32 @@ public class MainActivity extends Activity {
 
         setContentView(webView);
         webView.loadUrl("file:///android_asset/index.html");
+        webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
+        appUnlocked = !isAppLockEnabled();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!isAppLockEnabled()) {
+            appUnlocked = true;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            return;
+        }
+        boolean stale = backgroundedAt > 0L && System.currentTimeMillis() - backgroundedAt >= RELOCK_AFTER_MS;
+        if (!appUnlocked || stale) {
+            appUnlocked = false;
+            if (webView != null) webView.setVisibility(View.INVISIBLE);
+            if (webView != null) webView.postDelayed(this::authenticateUser, 160L);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (!isChangingConfigurations()) {
+            backgroundedAt = System.currentTimeMillis();
+        }
+        super.onStop();
     }
 
     private void configureSystemBars() {
@@ -100,15 +148,11 @@ public class MainActivity extends Activity {
         channel.setDescription(getString(R.string.notification_channel_description));
         channel.enableVibration(true);
         NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager != null) {
-            manager.createNotificationChannel(channel);
-        }
+        if (manager != null) manager.createNotificationChannel(channel);
     }
 
     void speakGerman(String text) {
-        if (text == null || text.trim().isEmpty() || textToSpeech == null) {
-            return;
-        }
+        if (text == null || text.trim().isEmpty() || textToSpeech == null) return;
         runOnUiThread(() -> textToSpeech.speak(
                 text,
                 TextToSpeech.QUEUE_FLUSH,
@@ -118,9 +162,7 @@ public class MainActivity extends Activity {
     }
 
     void stopSpeaking() {
-        if (textToSpeech != null) {
-            runOnUiThread(() -> textToSpeech.stop());
-        }
+        if (textToSpeech != null) runOnUiThread(() -> textToSpeech.stop());
     }
 
     boolean hasNotificationPermission() {
@@ -155,6 +197,210 @@ public class MainActivity extends Activity {
         NotificationScheduler.cancel(this);
     }
 
+    boolean isAppLockEnabled() {
+        return securityPreferences != null && securityPreferences.getBoolean("app_lock", true);
+    }
+
+    void setAppLockEnabled(boolean enabled) {
+        if (securityPreferences == null) return;
+        securityPreferences.edit().putBoolean("app_lock", enabled).apply();
+        runOnUiThread(() -> {
+            if (enabled) {
+                appUnlocked = false;
+                if (webView != null) webView.setVisibility(View.INVISIBLE);
+                authenticateUser();
+            } else {
+                appUnlocked = true;
+                if (webView != null) webView.setVisibility(View.VISIBLE);
+                notifyAuthenticationState(true);
+            }
+        });
+    }
+
+    boolean isDeviceSecurityAvailable() {
+        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK
+                | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        return BiometricManager.from(this).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS;
+    }
+
+    void lockNow() {
+        if (!isAppLockEnabled()) return;
+        runOnUiThread(() -> {
+            appUnlocked = false;
+            if (webView != null) webView.setVisibility(View.INVISIBLE);
+            authenticateUser();
+        });
+    }
+
+    boolean isPrivacyScreenEnabled() {
+        return securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false);
+    }
+
+    void setPrivacyScreenEnabled(boolean enabled) {
+        if (securityPreferences == null) return;
+        securityPreferences.edit().putBoolean("privacy_screen", enabled).apply();
+        runOnUiThread(this::applyPrivacyScreen);
+    }
+
+    private void applyPrivacyScreen() {
+        if (securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        }
+    }
+
+    private void authenticateUser() {
+        if (!isAppLockEnabled()) {
+            appUnlocked = true;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (authInProgress) return;
+
+        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK
+                | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
+            appUnlocked = true;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            showToast("قفل امن گوشی فعال نیست؛ از تنظیمات گوشی PIN یا اثر انگشت اضافه کن");
+            notifyAuthenticationState(true);
+            return;
+        }
+
+        authInProgress = true;
+        Executor executor = ContextCompat.getMainExecutor(this);
+        BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor,
+                new BiometricPrompt.AuthenticationCallback() {
+                    @Override
+                    public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                        super.onAuthenticationSucceeded(result);
+                        authInProgress = false;
+                        appUnlocked = true;
+                        backgroundedAt = 0L;
+                        if (webView != null) webView.setVisibility(View.VISIBLE);
+                        notifyAuthenticationState(true);
+                    }
+
+                    @Override
+                    public void onAuthenticationError(int errorCode, CharSequence errString) {
+                        super.onAuthenticationError(errorCode, errString);
+                        authInProgress = false;
+                        appUnlocked = false;
+                        notifyAuthenticationState(false);
+                        if (!isFinishing()) finish();
+                    }
+
+                    @Override
+                    public void onAuthenticationFailed() {
+                        super.onAuthenticationFailed();
+                        notifyAuthenticationState(false);
+                    }
+                });
+
+        BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("قفل امن GHAZAL")
+                .setSubtitle("با اثر انگشت، تشخیص چهره پشتیبانی‌شده یا قفل خود گوشی وارد شو")
+                .setConfirmationRequired(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            builder.setAllowedAuthenticators(authenticators);
+        } else {
+            builder.setDeviceCredentialAllowed(true);
+        }
+        biometricPrompt.authenticate(builder.build());
+    }
+
+    private void notifyAuthenticationState(boolean unlocked) {
+        if (webView == null) return;
+        runOnUiThread(() -> webView.evaluateJavascript(
+                "window.onAppAuthenticationChanged && window.onAppAuthenticationChanged(" + unlocked + ")",
+                null
+        ));
+    }
+
+    void startSpeechRecognition(String prompt) {
+        pendingSpeechPrompt = prompt == null ? "" : prompt;
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO));
+            return;
+        }
+        runOnUiThread(this::beginSpeechRecognition);
+    }
+
+    private void beginSpeechRecognition() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            notifySpeechError("تشخیص گفتار روی این گوشی در دسترس نیست");
+            return;
+        }
+        if (speechRecognizer != null) {
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override public void onReadyForSpeech(Bundle params) { }
+            @Override public void onBeginningOfSpeech() { }
+            @Override public void onRmsChanged(float rmsdB) { }
+            @Override public void onBufferReceived(byte[] buffer) { }
+            @Override public void onEndOfSpeech() { }
+            @Override public void onPartialResults(Bundle partialResults) { }
+            @Override public void onEvent(int eventType, Bundle params) { }
+
+            @Override
+            public void onError(int error) {
+                notifySpeechError(speechErrorMessage(error));
+            }
+
+            @Override
+            public void onResults(Bundle results) {
+                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
+                notifySpeechResult(text);
+            }
+        });
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE");
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "de-DE");
+        intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true);
+        intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+        if (pendingSpeechPrompt != null && !pendingSpeechPrompt.isEmpty()) {
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, pendingSpeechPrompt);
+        }
+        speechRecognizer.startListening(intent);
+    }
+
+    private String speechErrorMessage(int error) {
+        switch (error) {
+            case SpeechRecognizer.ERROR_NO_MATCH: return "جمله تشخیص داده نشد؛ دوباره واضح‌تر بگو";
+            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT: return "صدایی دریافت نشد؛ دوباره امتحان کن";
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: return "اجازه میکروفون فعال نیست";
+            case SpeechRecognizer.ERROR_NETWORK:
+            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: return "بسته تشخیص گفتار آفلاین در دسترس نیست یا سرویس گفتار مشکل دارد";
+            default: return "تشخیص گفتار انجام نشد؛ دوباره امتحان کن";
+        }
+    }
+
+    private void notifySpeechResult(String text) {
+        if (webView == null) return;
+        String quoted = JSONObject.quote(text == null ? "" : text);
+        runOnUiThread(() -> webView.evaluateJavascript(
+                "window.onSpeechResult && window.onSpeechResult(" + quoted + ")",
+                null
+        ));
+    }
+
+    private void notifySpeechError(String message) {
+        if (webView == null) return;
+        String quoted = JSONObject.quote(message == null ? "" : message);
+        runOnUiThread(() -> webView.evaluateJavascript(
+                "window.onSpeechError && window.onSpeechError(" + quoted + ")",
+                null
+        ));
+    }
+
     void startBackupExport(String json) {
         if (json == null || json.length() > MAX_BACKUP_BYTES) {
             showToast("حجم فایل پشتیبان معتبر نیست");
@@ -183,7 +429,7 @@ public class MainActivity extends Activity {
         try {
             return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (PackageManager.NameNotFoundException exception) {
-            return "1.0.0";
+            return "2.0.0";
         }
     }
 
@@ -192,6 +438,12 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_NOTIFICATIONS) {
             notifyWebPermissionState(hasNotificationPermission());
+        } else if (requestCode == REQUEST_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                beginSpeechRecognition();
+            } else {
+                notifySpeechError("برای تمرین گفتاری باید اجازه میکروفون فعال باشد");
+            }
         }
     }
 
@@ -248,16 +500,14 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView == null) {
+        if (webView == null || webView.getVisibility() != View.VISIBLE) {
             super.onBackPressed();
             return;
         }
         webView.evaluateJavascript(
                 "Boolean(window.androidBack && window.androidBack())",
                 value -> {
-                    if (!"true".equals(value)) {
-                        finish();
-                    }
+                    if (!"true".equals(value)) finish();
                 }
         );
     }
@@ -267,6 +517,11 @@ public class MainActivity extends Activity {
         if (textToSpeech != null) {
             textToSpeech.stop();
             textToSpeech.shutdown();
+        }
+        if (speechRecognizer != null) {
+            speechRecognizer.cancel();
+            speechRecognizer.destroy();
+            speechRecognizer = null;
         }
         if (webView != null) {
             webView.removeJavascriptInterface("GhazalAndroid");
