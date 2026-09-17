@@ -1,0 +1,79 @@
+package com.foad.ghazaldeutsch;
+
+import android.webkit.JavascriptInterface;
+
+import java.lang.ref.WeakReference;
+
+public final class AndroidBridge {
+    private final WeakReference<MainActivity> activityReference;
+
+    AndroidBridge(MainActivity activity) {
+        activityReference = new WeakReference<>(activity);
+    }
+
+    @JavascriptInterface
+    public void speak(String text) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.speakGerman(text);
+    }
+
+    @JavascriptInterface
+    public void stopSpeaking() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.stopSpeaking();
+    }
+
+    @JavascriptInterface
+    public void scheduleDailyReminder(int hour, int minute, String title, String body) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.scheduleReminder(hour, minute, title, body);
+    }
+
+    @JavascriptInterface
+    public void cancelDailyReminder() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.cancelReminder();
+    }
+
+    @JavascriptInterface
+    public void requestNotificationPermission() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.requestNotificationPermission();
+    }
+
+    @JavascriptInterface
+    public boolean hasNotificationPermission() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.hasNotificationPermission();
+    }
+
+    @JavascriptInterface
+    public void openNotificationSettings() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.openNotificationSettings();
+    }
+
+    @JavascriptInterface
+    public void exportBackup(String json) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.startBackupExport(json);
+    }
+
+    @JavascriptInterface
+    public void importBackup() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.startBackupImport();
+    }
+
+    @JavascriptInterface
+    public String getAppVersion() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "1.0.0" : activity.appVersion();
+    }
+
+    @JavascriptInterface
+    public void toast(String message) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.showToast(message);
+    }
+}

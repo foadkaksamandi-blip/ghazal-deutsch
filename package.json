@@ -1,0 +1,10 @@
+{
+  "name": "ghazal-deutsch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline German learning app for Android",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check app/src/main/assets/core.js && node --check app/src/main/assets/course-data.js && node --check app/src/main/assets/app.js"
+  }
+}

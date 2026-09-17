@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#090909">
+  <title>GHAZAL</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">G</div>
+      <div class="brand-copy">
+        <strong>GHAZAL</strong>
+        <span>آلمانی برای زندگی واقعی</span>
+      </div>
+      <button class="icon-button" data-action="open-settings" aria-label="تنظیمات">⚙</button>
+    </header>
+
+    <main id="view" class="view" aria-live="polite"></main>
+
+    <nav class="bottom-nav" aria-label="منوی اصلی">
+      <button data-nav="home" class="active"><span>⌂</span><small>امروز</small></button>
+      <button data-nav="path"><span>◫</span><small>مسیر</small></button>
+      <button data-nav="practice"><span>◎</span><small>تمرین</small></button>
+      <button data-nav="migration"><span>⌖</span><small>مهاجرت</small></button>
+      <button data-nav="profile"><span>◉</span><small>پیشرفت</small></button>
+    </nav>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-action="close-modal"></div>
+    <section id="modal-content" class="modal-sheet" role="dialog" aria-modal="true"></section>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input id="backup-file" type="file" accept="application/json" hidden>
+
+  <script src="core.js"></script>
+  <script src="course-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
