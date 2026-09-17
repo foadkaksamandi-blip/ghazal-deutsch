@@ -24,6 +24,12 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public void startSpeechRecognition(String prompt) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.startSpeechRecognition(prompt);
+    }
+
+    @JavascriptInterface
     public void scheduleDailyReminder(int hour, int minute, String title, String body) {
         MainActivity activity = activityReference.get();
         if (activity != null) activity.scheduleReminder(hour, minute, title, body);
@@ -54,6 +60,42 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public boolean isAppLockEnabled() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isAppLockEnabled();
+    }
+
+    @JavascriptInterface
+    public boolean isDeviceSecurityAvailable() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isDeviceSecurityAvailable();
+    }
+
+    @JavascriptInterface
+    public void setAppLockEnabled(boolean enabled) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.setAppLockEnabled(enabled);
+    }
+
+    @JavascriptInterface
+    public void lockNow() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.lockNow();
+    }
+
+    @JavascriptInterface
+    public boolean isPrivacyScreenEnabled() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isPrivacyScreenEnabled();
+    }
+
+    @JavascriptInterface
+    public void setPrivacyScreenEnabled(boolean enabled) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.setPrivacyScreenEnabled(enabled);
+    }
+
+    @JavascriptInterface
     public void exportBackup(String json) {
         MainActivity activity = activityReference.get();
         if (activity != null) activity.startBackupExport(json);
@@ -68,7 +110,7 @@ public final class AndroidBridge {
     @JavascriptInterface
     public String getAppVersion() {
         MainActivity activity = activityReference.get();
-        return activity == null ? "1.0.0" : activity.appVersion();
+        return activity == null ? "2.0.0" : activity.appVersion();
     }
 
     @JavascriptInterface
