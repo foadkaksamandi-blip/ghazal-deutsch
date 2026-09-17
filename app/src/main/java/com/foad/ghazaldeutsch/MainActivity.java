@@ -7,7 +7,10 @@ import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,10 +19,13 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.util.Base64;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
@@ -32,29 +38,52 @@ import androidx.fragment.app.FragmentActivity;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.concurrent.Executor;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 
 public class MainActivity extends FragmentActivity {
     private static final int REQUEST_NOTIFICATIONS = 4101;
     private static final int REQUEST_EXPORT = 4102;
     private static final int REQUEST_IMPORT = 4103;
     private static final int REQUEST_AUDIO = 4104;
-    private static final int MAX_BACKUP_BYTES = 2_000_000;
-    private static final long RELOCK_AFTER_MS = 15_000L;
+    private static final int REQUEST_SECURE_EXPORT = 4105;
+    private static final int REQUEST_SECURE_IMPORT = 4106;
+    private static final int REQUEST_PDF_EXPORT = 4107;
+    private static final int MAX_BACKUP_BYTES = 3_000_000;
+    private static final long RELOCK_AFTER_MS = 5_000L;
     private static final String SECURITY_PREFS = "ghazal_security";
+    private static final String SNAPSHOT_ALIAS = "GHAZAL_SNAPSHOT_AES_V1";
+    private static final String SNAPSHOT_PREF = "secure_snapshot";
 
     private WebView webView;
     private TextToSpeech textToSpeech;
     private SpeechRecognizer speechRecognizer;
     private String pendingBackupJson;
     private String pendingSpeechPrompt;
+    private String pendingSecureBackupJson;
+    private String pendingSecurePassphrase;
+    private String pendingSecureImportPassphrase;
+    private String pendingReportJson;
     private SharedPreferences securityPreferences;
     private boolean appUnlocked = false;
     private boolean authInProgress = false;
@@ -70,14 +99,24 @@ public class MainActivity extends FragmentActivity {
         createNotificationChannel();
         initializeTextToSpeech();
 
+        WebView.setWebContentsDebuggingEnabled(false);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(9, 9, 9));
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(true);
-        webView.getSettings().setAllowContentAccess(false);
-        webView.getSettings().setAllowFileAccess(true);
-        webView.getSettings().setAllowUniversalAccessFromFileURLs(false);
-        webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setSaveFormData(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) settings.setSafeBrowsingEnabled(true);
+
+        CookieManager.getInstance().setAcceptCookie(false);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false);
+        webView.setFilterTouchesWhenObscured(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "GhazalAndroid");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
@@ -120,6 +159,10 @@ public class MainActivity extends FragmentActivity {
     protected void onStop() {
         if (!isChangingConfigurations()) {
             backgroundedAt = System.currentTimeMillis();
+            if (isAppLockEnabled()) {
+                appUnlocked = false;
+                if (webView != null) webView.setVisibility(View.INVISIBLE);
+            }
         }
         super.onStop();
     }
@@ -139,6 +182,11 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    void setSpeechRate(float rate) {
+        float safe = Math.max(0.55f, Math.min(1.35f, rate));
+        if (textToSpeech != null) runOnUiThread(() -> textToSpeech.setSpeechRate(safe));
+    }
+
     private void createNotificationChannel() {
         NotificationChannel channel = new NotificationChannel(
                 NotificationScheduler.CHANNEL_ID,
@@ -153,12 +201,7 @@ public class MainActivity extends FragmentActivity {
 
     void speakGerman(String text) {
         if (text == null || text.trim().isEmpty() || textToSpeech == null) return;
-        runOnUiThread(() -> textToSpeech.speak(
-                text,
-                TextToSpeech.QUEUE_FLUSH,
-                null,
-                "ghazal-deutsch-utterance"
-        ));
+        runOnUiThread(() -> textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ghazal-deutsch-utterance"));
     }
 
     void stopSpeaking() {
@@ -172,19 +215,13 @@ public class MainActivity extends FragmentActivity {
 
     void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
-            runOnUiThread(() -> requestPermissions(
-                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                    REQUEST_NOTIFICATIONS
-            ));
-        } else {
-            notifyWebPermissionState(true);
-        }
+            runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS));
+        } else notifyWebPermissionState(true);
     }
 
     void openNotificationSettings() {
         runOnUiThread(() -> {
-            Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+            Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
             startActivity(intent);
         });
     }
@@ -218,8 +255,7 @@ public class MainActivity extends FragmentActivity {
     }
 
     boolean isDeviceSecurityAvailable() {
-        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK
-                | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
         return BiometricManager.from(this).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS;
     }
 
@@ -233,7 +269,7 @@ public class MainActivity extends FragmentActivity {
     }
 
     boolean isPrivacyScreenEnabled() {
-        return securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false);
+        return securityPreferences != null && securityPreferences.getBoolean("privacy_screen", true);
     }
 
     void setPrivacyScreenEnabled(boolean enabled) {
@@ -243,11 +279,21 @@ public class MainActivity extends FragmentActivity {
     }
 
     private void applyPrivacyScreen() {
-        if (securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false)) {
+        if (securityPreferences != null && securityPreferences.getBoolean("privacy_screen", true)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        } else {
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        } else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+    }
+
+    boolean isDeviceCompromised() {
+        if (Build.TAGS != null && Build.TAGS.contains("test-keys")) return true;
+        String[] paths = {"/system/app/Superuser.apk","/sbin/su","/system/bin/su","/system/xbin/su","/data/local/xbin/su","/data/local/bin/su","/system/sd/xbin/su","/system/bin/failsafe/su","/data/local/su","/su/bin/su"};
+        for (String path : paths) if (new File(path).exists()) return true;
+        String[] packages = {"com.topjohnwu.magisk","eu.chainfire.supersu","com.noshufou.android.su","com.koushikdutta.superuser"};
+        for (String packageName : packages) {
+            try { getPackageManager().getPackageInfo(packageName, 0); return true; }
+            catch (PackageManager.NameNotFoundException ignored) { }
         }
+        return false;
     }
 
     private void authenticateUser() {
@@ -258,64 +304,51 @@ public class MainActivity extends FragmentActivity {
         }
         if (authInProgress) return;
 
-        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK
-                | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        int authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
         if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
-            appUnlocked = true;
-            if (webView != null) webView.setVisibility(View.VISIBLE);
-            showToast("قفل امن گوشی فعال نیست؛ از تنظیمات گوشی PIN یا اثر انگشت اضافه کن");
-            notifyAuthenticationState(true);
+            appUnlocked = false;
+            if (webView != null) webView.setVisibility(View.INVISIBLE);
+            showToast("برای ورود امن، PIN/رمز یا اثر انگشت گوشی را فعال کن");
+            finish();
             return;
         }
 
         authInProgress = true;
         Executor executor = ContextCompat.getMainExecutor(this);
-        BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor,
-                new BiometricPrompt.AuthenticationCallback() {
-                    @Override
-                    public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                        super.onAuthenticationSucceeded(result);
-                        authInProgress = false;
-                        appUnlocked = true;
-                        backgroundedAt = 0L;
-                        if (webView != null) webView.setVisibility(View.VISIBLE);
-                        notifyAuthenticationState(true);
-                    }
-
-                    @Override
-                    public void onAuthenticationError(int errorCode, CharSequence errString) {
-                        super.onAuthenticationError(errorCode, errString);
-                        authInProgress = false;
-                        appUnlocked = false;
-                        notifyAuthenticationState(false);
-                        if (!isFinishing()) finish();
-                    }
-
-                    @Override
-                    public void onAuthenticationFailed() {
-                        super.onAuthenticationFailed();
-                        notifyAuthenticationState(false);
-                    }
-                });
+        BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
+            @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                super.onAuthenticationSucceeded(result);
+                authInProgress = false;
+                appUnlocked = true;
+                backgroundedAt = 0L;
+                if (webView != null) webView.setVisibility(View.VISIBLE);
+                notifyAuthenticationState(true);
+            }
+            @Override public void onAuthenticationError(int errorCode, CharSequence errString) {
+                super.onAuthenticationError(errorCode, errString);
+                authInProgress = false;
+                appUnlocked = false;
+                notifyAuthenticationState(false);
+                if (!isFinishing()) finish();
+            }
+            @Override public void onAuthenticationFailed() {
+                super.onAuthenticationFailed();
+                notifyAuthenticationState(false);
+            }
+        });
 
         BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("قفل امن GHAZAL")
                 .setSubtitle("با اثر انگشت، تشخیص چهره پشتیبانی‌شده یا قفل خود گوشی وارد شو")
                 .setConfirmationRequired(false);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            builder.setAllowedAuthenticators(authenticators);
-        } else {
-            builder.setDeviceCredentialAllowed(true);
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) builder.setAllowedAuthenticators(authenticators);
+        else builder.setDeviceCredentialAllowed(true);
         biometricPrompt.authenticate(builder.build());
     }
 
     private void notifyAuthenticationState(boolean unlocked) {
         if (webView == null) return;
-        runOnUiThread(() -> webView.evaluateJavascript(
-                "window.onAppAuthenticationChanged && window.onAppAuthenticationChanged(" + unlocked + ")",
-                null
-        ));
+        runOnUiThread(() -> webView.evaluateJavascript("window.onAppAuthenticationChanged && window.onAppAuthenticationChanged(" + unlocked + ")", null));
     }
 
     void startSpeechRecognition(String prompt) {
@@ -332,10 +365,7 @@ public class MainActivity extends FragmentActivity {
             notifySpeechError("تشخیص گفتار روی این گوشی در دسترس نیست");
             return;
         }
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-            speechRecognizer = null;
-        }
+        if (speechRecognizer != null) { speechRecognizer.destroy(); speechRecognizer = null; }
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override public void onReadyForSpeech(Bundle params) { }
@@ -345,14 +375,8 @@ public class MainActivity extends FragmentActivity {
             @Override public void onEndOfSpeech() { }
             @Override public void onPartialResults(Bundle partialResults) { }
             @Override public void onEvent(int eventType, Bundle params) { }
-
-            @Override
-            public void onError(int error) {
-                notifySpeechError(speechErrorMessage(error));
-            }
-
-            @Override
-            public void onResults(Bundle results) {
+            @Override public void onError(int error) { notifySpeechError(speechErrorMessage(error)); }
+            @Override public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
                 notifySpeechResult(text);
@@ -366,9 +390,7 @@ public class MainActivity extends FragmentActivity {
         intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
-        if (pendingSpeechPrompt != null && !pendingSpeechPrompt.isEmpty()) {
-            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, pendingSpeechPrompt);
-        }
+        if (pendingSpeechPrompt != null && !pendingSpeechPrompt.isEmpty()) intent.putExtra(RecognizerIntent.EXTRA_PROMPT, pendingSpeechPrompt);
         speechRecognizer.startListening(intent);
     }
 
@@ -386,26 +408,17 @@ public class MainActivity extends FragmentActivity {
     private void notifySpeechResult(String text) {
         if (webView == null) return;
         String quoted = JSONObject.quote(text == null ? "" : text);
-        runOnUiThread(() -> webView.evaluateJavascript(
-                "window.onSpeechResult && window.onSpeechResult(" + quoted + ")",
-                null
-        ));
+        runOnUiThread(() -> webView.evaluateJavascript("window.onSpeechResult && window.onSpeechResult(" + quoted + ")", null));
     }
 
     private void notifySpeechError(String message) {
         if (webView == null) return;
         String quoted = JSONObject.quote(message == null ? "" : message);
-        runOnUiThread(() -> webView.evaluateJavascript(
-                "window.onSpeechError && window.onSpeechError(" + quoted + ")",
-                null
-        ));
+        runOnUiThread(() -> webView.evaluateJavascript("window.onSpeechError && window.onSpeechError(" + quoted + ")", null));
     }
 
     void startBackupExport(String json) {
-        if (json == null || json.length() > MAX_BACKUP_BYTES) {
-            showToast("حجم فایل پشتیبان معتبر نیست");
-            return;
-        }
+        if (json == null || json.length() > MAX_BACKUP_BYTES) { showToast("حجم فایل پشتیبان معتبر نیست"); return; }
         pendingBackupJson = json;
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -421,45 +434,161 @@ public class MainActivity extends FragmentActivity {
         runOnUiThread(() -> startActivityForResult(intent, REQUEST_IMPORT));
     }
 
+    void exportSecureBackup(String json, String passphrase) {
+        if (json == null || json.length() > MAX_BACKUP_BYTES || passphrase == null || passphrase.length() < 8) { showToast("اطلاعات یا رمز پشتیبان معتبر نیست"); return; }
+        pendingSecureBackupJson = json;
+        pendingSecurePassphrase = passphrase;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/octet-stream");
+        intent.putExtra(Intent.EXTRA_TITLE, "GHAZAL-secure-backup.ghz");
+        runOnUiThread(() -> startActivityForResult(intent, REQUEST_SECURE_EXPORT));
+    }
+
+    void importSecureBackup(String passphrase) {
+        if (passphrase == null || passphrase.length() < 8) { showToast("رمز معتبر نیست"); return; }
+        pendingSecureImportPassphrase = passphrase;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        runOnUiThread(() -> startActivityForResult(intent, REQUEST_SECURE_IMPORT));
+    }
+
+    private byte[] encryptPortable(String plain, String passphrase) throws Exception {
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[16]; random.nextBytes(salt);
+        byte[] iv = new byte[12]; random.nextBytes(iv);
+        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 120_000, 256);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        SecretKey key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
+        byte[] encrypted = cipher.doFinal(plain.getBytes(StandardCharsets.UTF_8));
+        JSONObject out = new JSONObject();
+        out.put("v",1);
+        out.put("salt", Base64.encodeToString(salt, Base64.NO_WRAP));
+        out.put("iv", Base64.encodeToString(iv, Base64.NO_WRAP));
+        out.put("cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP));
+        return out.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String decryptPortable(String payload, String passphrase) throws Exception {
+        JSONObject in = new JSONObject(payload);
+        if (in.optInt("v",0) != 1) throw new IllegalArgumentException("Unsupported backup");
+        byte[] salt = Base64.decode(in.getString("salt"), Base64.NO_WRAP);
+        byte[] iv = Base64.decode(in.getString("iv"), Base64.NO_WRAP);
+        byte[] encrypted = Base64.decode(in.getString("cipher"), Base64.NO_WRAP);
+        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 120_000, 256);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        SecretKey key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
+        return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+    }
+
+    void saveSecureSnapshot(String json) {
+        if (json == null || json.length() > MAX_BACKUP_BYTES || securityPreferences == null) return;
+        try {
+            SecretKey key = getSnapshotKey();
+            byte[] iv = new byte[12]; new SecureRandom().nextBytes(iv);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
+            byte[] encrypted = cipher.doFinal(json.getBytes(StandardCharsets.UTF_8));
+            JSONObject payload = new JSONObject();
+            payload.put("iv", Base64.encodeToString(iv, Base64.NO_WRAP));
+            payload.put("cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP));
+            securityPreferences.edit().putString(SNAPSHOT_PREF, payload.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    String loadSecureSnapshot() {
+        if (securityPreferences == null) return "";
+        String payload = securityPreferences.getString(SNAPSHOT_PREF, "");
+        if (payload == null || payload.isEmpty()) return "";
+        try {
+            JSONObject in = new JSONObject(payload);
+            byte[] iv = Base64.decode(in.getString("iv"), Base64.NO_WRAP);
+            byte[] encrypted = Base64.decode(in.getString("cipher"), Base64.NO_WRAP);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, getSnapshotKey(), new GCMParameterSpec(128, iv));
+            return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+        } catch (Exception ignored) { return ""; }
+    }
+
+    private SecretKey getSnapshotKey() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        if (keyStore.containsAlias(SNAPSHOT_ALIAS)) return ((KeyStore.SecretKeyEntry) keyStore.getEntry(SNAPSHOT_ALIAS, null)).getSecretKey();
+        KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+        generator.init(new KeyGenParameterSpec.Builder(SNAPSHOT_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build());
+        return generator.generateKey();
+    }
+
+    void exportProgressPdf(String json) {
+        if (json == null || json.length() > MAX_BACKUP_BYTES) { showToast("گزارش معتبر نیست"); return; }
+        pendingReportJson = json;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/pdf");
+        intent.putExtra(Intent.EXTRA_TITLE, "GHAZAL-progress-report.pdf");
+        runOnUiThread(() -> startActivityForResult(intent, REQUEST_PDF_EXPORT));
+    }
+
+    private void writeReportPdf(Uri uri, String json) throws Exception {
+        JSONObject report = new JSONObject(json);
+        PdfDocument document = new PdfDocument();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(595,842,1).create();
+        PdfDocument.Page page = document.startPage(pageInfo);
+        Canvas canvas = page.getCanvas();
+        Paint title = new Paint(Paint.ANTI_ALIAS_FLAG); title.setColor(Color.BLACK); title.setTextSize(24f); title.setFakeBoldText(true);
+        Paint text = new Paint(Paint.ANTI_ALIAS_FLAG); text.setColor(Color.DKGRAY); text.setTextSize(12f);
+        Paint strong = new Paint(Paint.ANTI_ALIAS_FLAG); strong.setColor(Color.BLACK); strong.setTextSize(13f); strong.setFakeBoldText(true);
+        int y = 55;
+        canvas.drawText("GHAZAL — Progress Report",40,y,title); y+=32;
+        canvas.drawText("Generated: "+report.optString("generatedAt",""),40,y,text); y+=20;
+        canvas.drawText("Name: "+report.optString("name","Ghazal")+"   CEFR: "+report.optString("level","A1"),40,y,strong); y+=28;
+        JSONObject progress=report.optJSONObject("progress");
+        if(progress!=null){canvas.drawText("Completed lessons: "+progress.optInt("completedLessons",0),40,y,text);y+=18;canvas.drawText("XP: "+progress.optInt("xp",0)+"   Streak: "+progress.optInt("streak",0)+"   Saved errors: "+progress.optInt("errors",0),40,y,text);y+=28;}
+        canvas.drawText("Skill averages",40,y,strong); y+=22;
+        JSONObject skills=report.optJSONObject("skills");
+        if(skills!=null){Iterator<String> keys=skills.keys();while(keys.hasNext()&&y<760){String key=keys.next();if("errors".equals(key))continue;JSONObject s=skills.optJSONObject(key);if(s==null)continue;canvas.drawText(key+": "+s.optInt("avg",0)+"%  attempts="+s.optInt("attempts",0),55,y,text);y+=18;}}
+        y+=12;canvas.drawText("Security note: this report contains learning metrics only.",40,Math.min(y,790),text);
+        document.finishPage(page);
+        try(OutputStream output=getContentResolver().openOutputStream(uri,"wt")){if(output==null)throw new IOException("Cannot open PDF output");document.writeTo(output);}finally{document.close();}
+    }
+
     void showToast(String message) {
         runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
     }
 
     String appVersion() {
-        try {
-            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (PackageManager.NameNotFoundException exception) {
-            return "2.0.0";
-        }
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (PackageManager.NameNotFoundException exception) { return "4.0.0"; }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_NOTIFICATIONS) {
-            notifyWebPermissionState(hasNotificationPermission());
-        } else if (requestCode == REQUEST_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                beginSpeechRecognition();
-            } else {
-                notifySpeechError("برای تمرین گفتاری باید اجازه میکروفون فعال باشد");
-            }
+        if (requestCode == REQUEST_NOTIFICATIONS) notifyWebPermissionState(hasNotificationPermission());
+        else if (requestCode == REQUEST_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) beginSpeechRecognition();
+            else notifySpeechError("برای تمرین گفتاری باید اجازه میکروفون فعال باشد");
         }
     }
 
     private void notifyWebPermissionState(boolean granted) {
         if (webView == null) return;
-        runOnUiThread(() -> webView.evaluateJavascript(
-                "window.onNotificationPermissionChanged && window.onNotificationPermissionChanged(" + granted + ")",
-                null
-        ));
+        runOnUiThread(() -> webView.evaluateJavascript("window.onNotificationPermissionChanged && window.onNotificationPermissionChanged(" + granted + ")", null));
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
-
         Uri uri = data.getData();
         try {
             if (requestCode == REQUEST_EXPORT && pendingBackupJson != null) {
@@ -472,13 +601,32 @@ public class MainActivity extends FragmentActivity {
             } else if (requestCode == REQUEST_IMPORT) {
                 String imported = readText(uri);
                 String quoted = JSONObject.quote(imported);
-                webView.evaluateJavascript(
-                        "window.receiveImportedBackup && window.receiveImportedBackup(" + quoted + ")",
-                        null
-                );
+                webView.evaluateJavascript("window.receiveImportedBackup && window.receiveImportedBackup(" + quoted + ")", null);
+            } else if (requestCode == REQUEST_SECURE_EXPORT && pendingSecureBackupJson != null && pendingSecurePassphrase != null) {
+                byte[] encrypted = encryptPortable(pendingSecureBackupJson, pendingSecurePassphrase);
+                try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                    if (output == null) throw new IOException("Cannot open secure output");
+                    output.write(encrypted);
+                }
+                pendingSecureBackupJson = null;
+                pendingSecurePassphrase = null;
+                showToast("پشتیبان رمزگذاری‌شده ذخیره شد");
+            } else if (requestCode == REQUEST_SECURE_IMPORT && pendingSecureImportPassphrase != null) {
+                String payload = readText(uri);
+                String decrypted = decryptPortable(payload, pendingSecureImportPassphrase);
+                pendingSecureImportPassphrase = null;
+                String quoted = JSONObject.quote(decrypted);
+                webView.evaluateJavascript("window.onSecureBackupImported && window.onSecureBackupImported(" + quoted + ")", null);
+            } else if (requestCode == REQUEST_PDF_EXPORT && pendingReportJson != null) {
+                writeReportPdf(uri, pendingReportJson);
+                pendingReportJson = null;
+                showToast("گزارش PDF ذخیره شد");
             }
         } catch (Exception exception) {
-            showToast("خواندن یا ذخیره فایل انجام نشد");
+            pendingSecureBackupJson = null;
+            pendingSecurePassphrase = null;
+            pendingSecureImportPassphrase = null;
+            showToast("عملیات فایل انجام نشد؛ رمز یا فایل را بررسی کن");
         }
     }
 
@@ -500,33 +648,15 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView == null || webView.getVisibility() != View.VISIBLE) {
-            super.onBackPressed();
-            return;
-        }
-        webView.evaluateJavascript(
-                "Boolean(window.androidBack && window.androidBack())",
-                value -> {
-                    if (!"true".equals(value)) finish();
-                }
-        );
+        if (webView == null || webView.getVisibility() != View.VISIBLE) { super.onBackPressed(); return; }
+        webView.evaluateJavascript("Boolean(window.androidBack && window.androidBack())", value -> { if (!"true".equals(value)) finish(); });
     }
 
     @Override
     protected void onDestroy() {
-        if (textToSpeech != null) {
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-        }
-        if (speechRecognizer != null) {
-            speechRecognizer.cancel();
-            speechRecognizer.destroy();
-            speechRecognizer = null;
-        }
-        if (webView != null) {
-            webView.removeJavascriptInterface("GhazalAndroid");
-            webView.destroy();
-        }
+        if (textToSpeech != null) { textToSpeech.stop(); textToSpeech.shutdown(); }
+        if (speechRecognizer != null) { speechRecognizer.cancel(); speechRecognizer.destroy(); speechRecognizer = null; }
+        if (webView != null) { webView.removeJavascriptInterface("GhazalAndroid"); webView.destroy(); }
         super.onDestroy();
     }
 }

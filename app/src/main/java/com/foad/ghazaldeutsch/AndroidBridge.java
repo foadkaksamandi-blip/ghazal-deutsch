@@ -24,6 +24,12 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public void setSpeechRate(double rate) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.setSpeechRate((float) rate);
+    }
+
+    @JavascriptInterface
     public void startSpeechRecognition(String prompt) {
         MainActivity activity = activityReference.get();
         if (activity != null) activity.startSpeechRecognition(prompt);
@@ -96,6 +102,12 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public boolean isDeviceCompromised() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isDeviceCompromised();
+    }
+
+    @JavascriptInterface
     public void exportBackup(String json) {
         MainActivity activity = activityReference.get();
         if (activity != null) activity.startBackupExport(json);
@@ -108,9 +120,39 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public void exportSecureBackup(String json, String passphrase) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.exportSecureBackup(json, passphrase);
+    }
+
+    @JavascriptInterface
+    public void importSecureBackup(String passphrase) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.importSecureBackup(passphrase);
+    }
+
+    @JavascriptInterface
+    public void saveSecureSnapshot(String json) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.saveSecureSnapshot(json);
+    }
+
+    @JavascriptInterface
+    public String loadSecureSnapshot() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "" : activity.loadSecureSnapshot();
+    }
+
+    @JavascriptInterface
+    public void exportProgressPdf(String json) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.exportProgressPdf(json);
+    }
+
+    @JavascriptInterface
     public String getAppVersion() {
         MainActivity activity = activityReference.get();
-        return activity == null ? "3.0.0" : activity.appVersion();
+        return activity == null ? "4.0.0" : activity.appVersion();
     }
 
     @JavascriptInterface
