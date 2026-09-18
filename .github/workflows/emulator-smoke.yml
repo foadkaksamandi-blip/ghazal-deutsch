@@ -1,4 +1,4 @@
-name: Android Emulator Runtime Smoke
+name: Android Physical-Touch Interaction Regression
 
 on:
   pull_request:
@@ -9,9 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  emulator-smoke:
+  interaction-device-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -28,29 +28,38 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Build debug runtime-smoke APK
-        run: gradle :app:assembleDebug --stacktrace
+      - name: Compile app and instrumentation tests
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Enable KVM acceleration
         run: |
           if [ -e /dev/kvm ]; then
             sudo chmod 666 /dev/kvm
             ls -l /dev/kvm
           else
-            echo "KVM device is unavailable; emulator may run in software mode"
+            echo "KVM device is unavailable"
+            exit 1
           fi
-      - name: Emulator boot and real APK runtime smoke
+      - name: Run real WebView physical-touch tests on Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 35
           arch: x86_64
-          profile: pixel_2
+          profile: pixel_6
           disable-animations: true
-          script: bash scripts/android-emulator-smoke.sh
-      - name: Upload emulator evidence
+          script: |
+            gradle :app:connectedDebugAndroidTest --stacktrace
+      - name: Collect interaction test evidence
+        if: always()
+        run: |
+          mkdir -p qa/interaction-device
+          cp -R app/build/reports/androidTests/connected/debug qa/interaction-device/report 2>/dev/null || true
+          cp -R app/build/outputs/androidTest-results/connected qa/interaction-device/results 2>/dev/null || true
+          find qa/interaction-device -maxdepth 4 -type f | sort || true
+      - name: Upload interaction evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v14-1-emulator-smoke
-          path: qa/emulator
+          name: GHAZAL-v14-1-physical-touch-regression
+          path: qa/interaction-device
           if-no-files-found: warn
           retention-days: 30
