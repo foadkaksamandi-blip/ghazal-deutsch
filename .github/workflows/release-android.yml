@@ -95,11 +95,11 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           AAB="app/build/outputs/bundle/release/app-release.aab"
           test -f "$APK" && test -f "$AAB"
-          apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
           ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
           EXPECTED=$(printf '%s' "$CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
           test -n "$ACTUAL" && test "$ACTUAL" = "$EXPECTED"
-          if aapt dump badging "$APK" | grep -q "application-debuggable"; then exit 1; fi
+          if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then exit 1; fi
       - name: Rename production artifacts
         run: |
           cp app/build/outputs/apk/release/app-release.apk GHAZAL-v12-production.apk
