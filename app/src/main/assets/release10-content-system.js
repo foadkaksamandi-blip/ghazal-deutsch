@@ -34,7 +34,26 @@
       (Deep.contrasts||[]).forEach(x=>push({id:"contrast:"+x.id,type:"contrast",level:x.level,title:x.title,text:[x.explanation,x.example,x.trap].join(" "),ref:x.id}));
       (Deep.exams||[]).forEach(x=>push({id:"exam:"+x.id,type:"exam",level:x.level,title:x.exam+" "+x.skill,text:x.task,ref:x.id}));
     }
-    if(Spec&&Spec.tracks)Object.values(Spec.tracks).forEach(t=>(t.modules||[]).forEach(m=>push({id:"module:"+m.id,type:"module",level:m.level,title:m.title,text:[m.fa,m.goal,m.writing,m.speaking,...m.phrases].join(" "),ref:m.id,track:t.id})));
+    if(Spec&&Spec.tracks){
+      const trackAliases={
+        migration:"Migration Einwanderung Alltag Ankunft Behörde Wohnung",
+        career:"Arbeit Beruf Karriere Bewerbung Vorstellungsgespräch Arbeitsplatz",
+        university:"Universität Studium Hochschule Uni Campus Seminar Vorlesung",
+        exams:"Prüfung TestDaF Goethe telc ÖSD"
+      };
+      Object.values(Spec.tracks).forEach(t=>(t.modules||[]).forEach(m=>{
+        const vocab=(m.vocabulary||[]).flatMap(v=>[v.de,v.fa]).filter(Boolean);
+        push({
+          id:"module:"+m.id,
+          type:"module",
+          level:m.level,
+          title:m.title,
+          text:[t.id,t.title,t.fa,trackAliases[t.id]||"",m.fa,m.goal,m.writing,m.speaking,...(m.phrases||[]),...vocab].filter(Boolean).join(" "),
+          ref:m.id,
+          track:t.id
+        });
+      }));
+    }
     if(Advanced&&Advanced.packs)Object.entries(Advanced.packs).forEach(([k,p])=>(p.items||[]).forEach(x=>push({id:"pack:"+x.id,type:"pack",level:x.level,title:x.de,text:[x.fa,x.example,x.register].join(" "),ref:x.id,pack:k})));
     return out;
   }

@@ -347,3 +347,57 @@ input[type="time"] {
   background: #111;
   border: 1px solid var(--line);
 }
+
+
+/* 14.0.2 onboarding touch compatibility
+   Keep the dim layer physically below the sheet and non-interactive.
+   Some Android WebView/MIUI compositor builds can otherwise route touches
+   to the fullscreen backdrop instead of visible controls. */
+.modal-backdrop {
+  z-index: 0 !important;
+  pointer-events: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.modal-sheet {
+  z-index: 2 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+.modal-sheet button,
+.welcome-action {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.welcome-build {
+  margin: 12px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  direction: ltr;
+  text-align: center;
+}
+
+
+/* First-run screen is rendered directly in the main WebView, not inside a modal.
+   This removes the fullscreen overlay from the critical first interaction. */
+body.onboarding-active .topbar,
+body.onboarding-active .bottom-nav {
+  display: none !important;
+}
+body.onboarding-active .view {
+  min-height: 100vh;
+  padding: max(28px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+  display: grid;
+  align-items: center;
+}
+.onboarding-page {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  position: relative;
+  z-index: 100;
+  pointer-events: auto !important;
+}

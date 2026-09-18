@@ -543,19 +543,51 @@
     return "ارزیابی نشده";
   }
 
+  function bindWelcomeButtons() {
+    const root = document.getElementById("ghz-welcome-root") || view;
+    const start = root.querySelector("[data-action='start-placement']");
+    const skip = root.querySelector("[data-action='skip-placement']");
+    let handledAt = 0;
+    function bind(button, fn) {
+      if (!button || button.dataset.ghzBound === "1") return;
+      button.dataset.ghzBound = "1";
+      const run = event => {
+        const now = Date.now();
+        if (now - handledAt < 450) return;
+        handledAt = now;
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        fn();
+      };
+      button.addEventListener("click", run, { passive: false });
+      button.addEventListener("touchend", run, { passive: false });
+      button.addEventListener("pointerup", run, { passive: false });
+    }
+    bind(start, startPlacement);
+    bind(skip, () => finishOnboarding(true));
+  }
+
   function showWelcome() {
-    openModal(`
-      <div class="sheet-handle"></div>
-      <div class="onboarding">
+    document.body.classList.add("onboarding-active");
+    modal.hidden = true;
+    modal.dataset.locked = "false";
+    modalContent.innerHTML = "";
+    view.innerHTML = `
+      <section id="ghz-welcome-root" class="onboarding onboarding-page" aria-label="شروع GHAZAL">
         <div class="onboarding-mark">G</div>
         <h1>آلمانی برای غزل</h1>
         <p>مسیر شخصی یادگیری برای مهاجرت، زندگی واقعی، کار، دانشگاه و آمادگی آزمون؛ کاملاً آفلاین روی همین گوشی.</p>
         <div class="feature-points"><div class="feature-point">✓ ارزیابی اولیه و مسیر A1 تا C2</div><div class="feature-point">✓ مرور هوشمند و بانک اشتباه‌ها</div><div class="feature-point">✓ بسته فوری زندگی در آلمان</div><div class="feature-point">✓ ذخیره اطلاعات و اعلان روی خود گوشی</div></div>
-        <button class="primary-button" data-action="start-placement">شروع ارزیابی اولیه</button>
-        <button class="secondary-button" style="margin-top:9px" data-action="skip-placement">شروع مستقیم از A1</button>
-      </div>
-      <div class="signature">FOAD</div>
-    `, true);
+        <button id="ghz-start-placement" class="primary-button welcome-action" type="button" data-action="start-placement">شروع ارزیابی اولیه</button>
+        <button id="ghz-skip-placement" class="secondary-button welcome-action" type="button" style="margin-top:9px" data-action="skip-placement">شروع مستقیم از A1</button>
+        <p class="welcome-build">نسخه 14.0.2 · Touch Fix 2</p>
+        <div class="signature">FOAD</div>
+      </section>
+    `;
+    requestAnimationFrame(bindWelcomeButtons);
+    setTimeout(bindWelcomeButtons, 120);
   }
 
   function startPlacement() {
@@ -594,6 +626,7 @@
   }
 
   function finishOnboarding(skip) {
+    document.body.classList.remove("onboarding-active");
     state.onboardingDone = true;
     state.profile.level = skip ? "A1" : placementLevel;
     selectedLevel = state.profile.level;

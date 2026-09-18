@@ -4,8 +4,8 @@
   if(root)root.GhazalFinalReleaseCore=api;
 })(typeof window!=="undefined"?window:null,function(QA,Product,Security){
   "use strict";
-  const VERSION="14.0.0";
-  const VERSION_CODE=14;
+  const VERSION="14.0.2";
+  const VERSION_CODE=16;
   const PACKAGE_ID="com.foad.ghazaldeutsch";
   const RELEASE_NAME="GHAZAL Final";
   const SCHEMA=1;

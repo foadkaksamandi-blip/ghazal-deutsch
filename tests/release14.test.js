@@ -9,8 +9,8 @@ const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 test('Stage 8 final core locks version package and offline privacy model',()=>{
   delete require.cache[require.resolve('../app/src/main/assets/release14-final-core.js')];
   const core=require('../app/src/main/assets/release14-final-core.js');
-  assert.equal(core.VERSION,'14.0.0');
-  assert.equal(core.VERSION_CODE,14);
+  assert.equal(core.VERSION,'14.0.2');
+  assert.equal(core.VERSION_CODE,16);
   assert.equal(core.PACKAGE_ID,'com.foad.ghazaldeutsch');
   const privacy=core.privacyModel();
   assert.equal(privacy.offlineCore,true);
@@ -20,8 +20,8 @@ test('Stage 8 final core locks version package and offline privacy model',()=>{
 
 test('Stage 8 Android build is fail-closed for unsigned production releases',()=>{
   const gradle=read('app/build.gradle');
-  assert.match(gradle,/versionCode\s+14/);
-  assert.match(gradle,/versionName\s+"14\.0\.0"/);
+  assert.match(gradle,/versionCode\s+16/);
+  assert.match(gradle,/versionName\s+"14\.0\.2"/);
   assert.ok(gradle.includes('FINAL_RELEASE_BUILD", "true"'));
   assert.ok(gradle.includes('QA_INTERNAL_TOOLS_ENABLED", "false"'));
   assert.match(gradle,/RELEASE_CHANNEL[^\n]+production/);
@@ -38,8 +38,8 @@ test('Stage 8 runtime refuses a final build whose production identity does not v
   assert.ok(main.includes('اعتبار نسخه نهایی GHAZAL تأیید نشد'));
   assert.ok(main.includes('String getReleaseInfo()'));
   assert.ok(bridge.includes('public String getReleaseInfo()'));
-  assert.ok(main.includes('return "14.0.0"'));
-  assert.ok(bridge.includes('return activity == null ? "14.0.0"'));
+  assert.ok(main.includes('return "14.0.2"'));
+  assert.ok(bridge.includes('return activity == null ? "14.0.2"'));
 });
 
 test('Stage 8 production build hides internal QA center while QA builds retain it',()=>{
@@ -105,8 +105,8 @@ test('Stage 8 package and final gate remain version-consistent',()=>{
   const gradle=read('app/build.gradle');
   const qa=read('app/src/main/assets/release13-qa-core.js');
   const finalCore=read('app/src/main/assets/release14-final-core.js');
-  assert.equal(pkg.version,'14.0.0');
-  assert.ok(gradle.includes('versionName "14.0.0"'));
-  assert.ok(qa.includes('const VERSION="14.0.0"'));
-  assert.ok(finalCore.includes('const VERSION="14.0.0"'));
+  assert.equal(pkg.version,'14.0.2');
+  assert.ok(gradle.includes('versionName "14.0.2"'));
+  assert.ok(qa.includes('const VERSION="14.0.2"'));
+  assert.ok(finalCore.includes('const VERSION="14.0.2"'));
 });
