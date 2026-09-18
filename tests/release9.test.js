@@ -36,13 +36,13 @@ test('collocation bank covers all four product domains',()=>{
   }
 });
 
-test('Release 9 assets and version are wired into the app',()=>{
+test('Release 9 assets survive later version upgrades',()=>{
   const root=path.join(__dirname,'..');
   const index=fs.readFileSync(path.join(root,'app/src/main/assets/index.html'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   for(const asset of ['release9-specialization.js','release9-specialization-ui.js','release9-specialization.css']) assert.ok(index.includes(asset),asset);
-  assert.equal(pkg.version,'9.0.0');
-  assert.match(gradle,/versionCode 9/);
-  assert.match(gradle,/versionName "9\.0\.0"/);
+  assert.ok(Number(pkg.version.split('.')[0])>=9);
+  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=9);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
 });
