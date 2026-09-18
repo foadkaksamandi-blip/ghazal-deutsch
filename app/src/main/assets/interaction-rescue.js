@@ -64,9 +64,11 @@
       [pxX+offsetX,pxY+offsetY]
     ];
     for(const [x,y] of points){
-      const e=document.elementFromPoint(x,y);
-      const target=interactive(e);
-      if(target) return target;
+      const stack=typeof document.elementsFromPoint==="function"?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
+      for(const e of stack){
+        const target=interactive(e);
+        if(target) return target;
+      }
     }
     return null;
   }
