@@ -380,3 +380,24 @@ input[type="time"] {
   direction: ltr;
   text-align: center;
 }
+
+
+/* First-run screen is rendered directly in the main WebView, not inside a modal.
+   This removes the fullscreen overlay from the critical first interaction. */
+body.onboarding-active .topbar,
+body.onboarding-active .bottom-nav {
+  display: none !important;
+}
+body.onboarding-active .view {
+  min-height: 100vh;
+  padding: max(28px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+  display: grid;
+  align-items: center;
+}
+.onboarding-page {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  position: relative;
+  z-index: 100;
+  pointer-events: auto !important;
+}
