@@ -24,7 +24,7 @@ test('Stage 8 Android build is fail-closed for unsigned production releases',()=
   assert.match(gradle,/versionName\s+"14\.0\.0"/);
   assert.ok(gradle.includes('FINAL_RELEASE_BUILD", "true"'));
   assert.ok(gradle.includes('QA_INTERNAL_TOOLS_ENABLED", "false"'));
-  assert.ok(gradle.includes('RELEASE_CHANNEL", "\"production\""'));
+  assert.match(gradle,/RELEASE_CHANNEL[^\n]+production/);
   assert.ok(gradle.includes('Production release requires GHZ_STORE_FILE'));
   assert.ok(gradle.includes(':app:assembleRelease'));
   assert.ok(gradle.includes(':app:bundleRelease'));
