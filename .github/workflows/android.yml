@@ -96,8 +96,8 @@ jobs:
         run: |
           APK="app/build/outputs/apk/hardenedQa/app-hardenedQa.apk"
           test -f "$APK"
-          apksigner verify --verbose --print-certs "$APK"
-          if aapt dump badging "$APK" | grep -q "application-debuggable"; then
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK"
+          if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then
             echo "Hardened QA APK is debuggable"
             exit 1
           fi
