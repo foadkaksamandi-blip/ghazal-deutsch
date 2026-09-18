@@ -1,6 +1,6 @@
 {
   "name": "ghazal-deutsch",
-  "version": "14.0.0",
+  "version": "14.0.1",
   "private": true,
   "description": "Offline-first German acquisition system for migration, real life, university, career, classrooms and exams",
   "scripts": {
