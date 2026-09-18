@@ -26,6 +26,7 @@ import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.util.Base64;
 import android.view.View;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
@@ -101,6 +102,10 @@ public class MainActivity extends FragmentActivity {
     private boolean authInProgress = false;
     private boolean ttsReady = false;
     private long backgroundedAt = 0L;
+    private float rescueDownX;
+    private float rescueDownY;
+    private long rescueDownAt;
+    private boolean rescueMoved;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -149,6 +154,7 @@ public class MainActivity extends FragmentActivity {
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.requestFocus(View.FOCUS_DOWN);
+        installNativeTouchRescue();
         webView.addJavascriptInterface(new AndroidBridge(this), "GhazalAndroid");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
@@ -181,6 +187,45 @@ public class MainActivity extends FragmentActivity {
         webView.loadUrl("file:///android_asset/index.html");
         webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
         appUnlocked = !isAppLockEnabled();
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void installNativeTouchRescue() {
+        final float slop = 18f * getResources().getDisplayMetrics().density;
+        webView.setOnTouchListener((view, event) -> {
+            if (event == null) return false;
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    rescueDownX = event.getX();
+                    rescueDownY = event.getY();
+                    rescueDownAt = System.currentTimeMillis();
+                    rescueMoved = false;
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    if (Math.abs(event.getX() - rescueDownX) > slop || Math.abs(event.getY() - rescueDownY) > slop) {
+                        rescueMoved = true;
+                    }
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    rescueMoved = true;
+                    break;
+                case MotionEvent.ACTION_UP:
+                    long elapsed = System.currentTimeMillis() - rescueDownAt;
+                    if (!rescueMoved && elapsed >= 0L && elapsed <= 900L) {
+                        final float x = event.getX();
+                        final float y = event.getY();
+                        webView.postDelayed(() -> {
+                            if (webView == null) return;
+                            String js = "(function(){try{if(window.GhazalInteractionRescue&&typeof window.GhazalInteractionRescue.nativeTap==='function'){window.GhazalInteractionRescue.nativeTap(" + x + "," + y + ");}}catch(e){}})();";
+                            webView.evaluateJavascript(js, null);
+                        }, 135L);
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return false;
+        });
     }
 
     @Override
