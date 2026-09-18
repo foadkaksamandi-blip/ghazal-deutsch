@@ -167,9 +167,15 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
   const runtimeFiles=[];
   for(const p of fs.readdirSync(ASSETS)){if(/\.(js|html)$/.test(p))runtimeFiles.push(p);}
-  const externalRefs=[],dangerousEval=[];
-  for(const p of runtimeFiles){const t=fs.readFileSync(path.join(ASSETS,p),"utf8");if(/https?:\/\//i.test(t))externalRefs.push(p);if(/\beval\s*\(|new\s+Function\s*\(/.test(t))dangerousEval.push(p);}
-  assertCheck("runtime-no-external-http",externalRefs.length===0,{files:externalRefs});
+  const networkCalls=[],dangerousEval=[],externalHtml=[];
+  for(const p of runtimeFiles){
+    const t=fs.readFileSync(path.join(ASSETS,p),"utf8");
+    if(/\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\s*\(|navigator\.sendBeacon\s*\(/.test(t))networkCalls.push(p);
+    if(/\beval\s*\(|new\s+Function\s*\(/.test(t))dangerousEval.push(p);
+    if(/<(?:script|img|audio|video|source|link)[^>]+(?:src|href)\s*=\s*["']https?:\/\//i.test(t))externalHtml.push(p);
+  }
+  assertCheck("runtime-no-network-api",networkCalls.length===0,{files:networkCalls});
+  assertCheck("runtime-no-external-resource-tags",externalHtml.length===0,{files:externalHtml});
   assertCheck("runtime-no-dynamic-eval",dangerousEval.length===0,{files:dangerousEval});
 
   const pkg=JSON.parse(fs.readFileSync(path.join(ROOT,"package.json"),"utf8"));
