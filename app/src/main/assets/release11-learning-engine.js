@@ -81,7 +81,7 @@
     if(!arr.length)return[];const out=[],used=new Set();let n=Math.abs(Number(seed)||1);while(out.length<Math.min(count,arr.length)){n=(n*9301+49297)%233280;const i=Math.floor(n/233280*arr.length);if(!used.has(i)){used.add(i);out.push(arr[i]);}}return out;
   }
   function buildDailyPlan(raw,minutes,level){
-    const s=normalizeState(raw,raw&&raw.profileId),budget=Math.max(10,Math.min(120,Number(minutes)||s.dailyMinutes||25)),lv=LEVELS.includes(level)?level:s.currentLevel,all=(Exercises&&Exercises.exercises||[]).filter(x=>x.level===lv),due=dueReviews(s,Math.ceil(budget/2)),weak=weakestSkills(s).slice(0,3),selected=[],used=new Set(),spent=0;
+    const s=normalizeState(raw,raw&&raw.profileId),budget=Math.max(10,Math.min(120,Number(minutes)||s.dailyMinutes||25)),lv=LEVELS.includes(level)?level:s.currentLevel,all=(Exercises&&Exercises.exercises||[]).filter(x=>x.level===lv),due=dueReviews(s,Math.ceil(budget/2)),weak=weakestSkills(s).slice(0,3),selected=[],used=new Set();let spent=0;
     function add(ex,reason){if(!ex||used.has(ex.id))return;const cost=TYPE_MINUTES[ex.type]||3;if(spent+cost>budget&&selected.length)return;used.add(ex.id);selected.push({exercise:ex,minutes:cost,reason});spent+=cost;}
     due.forEach(x=>add(x,"مرور موعددار"));
     weak.forEach((w,idx)=>deterministicPick(all.filter(x=>skillOf(x)===w.id&&!used.has(x.id)),Math.max(1,idx===0?3:2),Number(dateKey().replace(/-/g,""))+idx).forEach(x=>add(x,"تقویت "+w.id)));
