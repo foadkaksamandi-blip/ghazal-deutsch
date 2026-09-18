@@ -734,6 +734,31 @@ public class MainActivity extends FragmentActivity {
         return out.toString();
     }
 
+    String getReleaseInfo() {
+        JSONObject out = new JSONObject();
+        try {
+            PackageInfo pkg = getPackageManager().getPackageInfo(getPackageName(), 0);
+            out.put("version", pkg.versionName == null ? appVersion() : pkg.versionName);
+            out.put("versionCode", Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? pkg.getLongVersionCode() : pkg.versionCode);
+            out.put("packageName", getPackageName());
+            out.put("channel", BuildConfig.RELEASE_CHANNEL);
+            out.put("finalReleaseBuild", BuildConfig.FINAL_RELEASE_BUILD);
+            out.put("qaToolsEnabled", BuildConfig.QA_INTERNAL_TOOLS_ENABLED);
+            out.put("productionSigningConfigured", BuildConfig.PRODUCTION_SIGNING_ENABLED);
+            out.put("productionSigned", isProductionSigned());
+            out.put("signingSha256", signingCertificateSha256());
+            out.put("debuggable", isDebuggableBuild());
+            out.put("assetIntegrity", verifyBundledAssets());
+            out.put("cryptoSelfTest", runCryptoSelfTest());
+            out.put("rootRisk", isDeviceCompromised());
+            out.put("hookRisk", isRuntimeHookRisk());
+            out.put("installer", installerSource());
+            out.put("offlineCore", true);
+            out.put("internetPermission", false);
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
     String getDeviceReport() {
         JSONObject out = new JSONObject();
         try {
@@ -825,7 +850,7 @@ public class MainActivity extends FragmentActivity {
 
     String appVersion() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (PackageManager.NameNotFoundException exception) { return "13.0.0"; }
+        catch (PackageManager.NameNotFoundException exception) { return "14.0.0"; }
     }
 
     @Override
