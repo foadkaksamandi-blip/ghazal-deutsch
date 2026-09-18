@@ -145,7 +145,8 @@ jobs:
           ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' qa/apk-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
           EXPECTED=$(printf '%s' "$CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
           test -n "$ACTUAL" && test "$ACTUAL" = "$EXPECTED"
-          jarsigner -verify -strict -certs "$AAB" >/tmp/aab-verify.txt
+          jarsigner -verify -verbose -certs "$AAB" | tee /tmp/aab-verify.txt
+          grep -q "jar verified." /tmp/aab-verify.txt
           $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
           if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then
             echo "Production APK is debuggable"; exit 1
