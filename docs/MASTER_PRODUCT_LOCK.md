@@ -113,7 +113,7 @@ As of GHAZAL 13.0.0:
 - Stage 4 — Classroom / Teacher Product: COMPLETE CANDIDATE.
 - Stage 5 — Professional Product Features: COMPLETE CANDIDATE.
 - Stage 6 — Security / Anti-Tamper: CODE + HARDENING COMPLETE CANDIDATE.
-- Stage 7 — Heavy QA: IMPLEMENTED CANDIDATE — automated CI and in-app QA Center added; real-device critical matrix must still be executed and passed.
+- Stage 7 — Heavy QA: AUTOMATED PASS / DEVICE ACCEPTANCE PENDING — regression, stress/fuzz, syntax, Android lint, hardened APK build, signature/zipalign/permission/payload verification all pass; real-device critical matrix must still be executed and passed.
 - Stage 8 — Final Release: BLOCKED until Stage 7 real-device critical matrix passes and permanent production signing is configured.
 
 Stage 6 external security gates that remain intentionally outside source control:
