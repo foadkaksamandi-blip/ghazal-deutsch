@@ -18,43 +18,46 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-
       - name: Install Android platform
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
-      - name: Validate offline course data
+      - name: Fetch licensed human-native audio pack
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/human_audio
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/9/91/De-guten_Tag2.ogg" -o app/src/main/assets/human_audio/De-guten_Tag2.ogg
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/f/f7/De-Wie_geht_es_dir..ogg" -o app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/a/aa/De-Schritt_f%C3%BCr_Schritt.ogg" -o app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/d/d3/De-darstellen.ogg" -o app/src/main/assets/human_audio/De-darstellen.ogg
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/6/69/De-eintragen.ogg" -o app/src/main/assets/human_audio/De-eintragen.ogg
+          curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/8/83/De-at-deutsch.ogg" -o app/src/main/assets/human_audio/De-at-deutsch.ogg
+          printf '%s\n'             '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg'             'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg'             'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg'             '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg'             'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg'             '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
+          sha1sum -c /tmp/human_audio.sha1
+      - name: Validate Stage 2 complete candidate
         run: npm test
-
       - name: Check JavaScript syntax
         run: npm run check
-
-      - name: Build installable APK
+      - name: Build installable QA APK
         run: gradle :app:assembleDebug --stacktrace
-
       - name: Name APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v4.apk
-
+        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v10-stage2-complete-qa.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v4
-          path: GHAZAL-v4.apk
+          name: GHAZAL-v10-stage2-complete-qa
+          path: GHAZAL-v10-stage2-complete-qa.apk
           if-no-files-found: error
           retention-days: 90

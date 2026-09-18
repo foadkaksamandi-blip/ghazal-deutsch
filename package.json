@@ -1,10 +1,10 @@
 {
   "name": "ghazal-deutsch",
-  "version": "4.0.0",
+  "version": "10.0.0",
   "private": true,
-  "description": "Offline-first German acquisition system for migration, real life, university, career and exams",
+  "description": "Offline-first German acquisition system for migration, real life, university, career, classrooms and exams",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check app/src/main/assets/core.js && node --check app/src/main/assets/course-data.js && node --check app/src/main/assets/release4-content.js && node --check app/src/main/assets/app.js && node --check app/src/main/assets/os-extension.js && node --check app/src/main/assets/release3-extension.js && node --check app/src/main/assets/release4-extension.js && node --check app/src/main/assets/release4-navigation.js"
+    "check": "node --check app/src/main/assets/core.js && node --check app/src/main/assets/course-data.js && node --check app/src/main/assets/release4-content.js && node --check app/src/main/assets/release5-content.js && node --check app/src/main/assets/release7-content.js && node --check app/src/main/assets/release10-capstone-content.js && node --check app/src/main/assets/release7-library.js && node --check app/src/main/assets/release8-dictionary.js && node --check app/src/main/assets/release8-deep-library.js && node --check app/src/main/assets/release9-specialization.js && node --check app/src/main/assets/release10-advanced-content.js && node --check app/src/main/assets/release10-human-audio.js && node --check app/src/main/assets/release10-exercise-engine.js && node --check app/src/main/assets/release10-content-system.js && node --check app/src/main/assets/release10-offline-coach.js && node --check app/src/main/assets/platform-core.js && node --check app/src/main/assets/app.js && node --check app/src/main/assets/os-extension.js && node --check app/src/main/assets/release3-extension.js && node --check app/src/main/assets/release4-extension.js && node --check app/src/main/assets/release4-navigation.js && node --check app/src/main/assets/release5-extension.js && node --check app/src/main/assets/release6-platform.js && node --check app/src/main/assets/release7-library-ui.js && node --check app/src/main/assets/release8-content-depth-ui.js && node --check app/src/main/assets/release9-specialization-ui.js && node --check app/src/main/assets/release10-stage2-ui.js"
   }
 }
