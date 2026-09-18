@@ -228,6 +228,10 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    WebView webViewForTesting() {
+        return webView;
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
