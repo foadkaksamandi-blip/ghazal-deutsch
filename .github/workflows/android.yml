@@ -46,18 +46,18 @@ jobs:
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/8/83/De-at-deutsch.ogg" -o app/src/main/assets/human_audio/De-at-deutsch.ogg
           printf '%s\n'             '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg'             'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg'             'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg'             '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg'             'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg'             '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
           sha1sum -c /tmp/human_audio.sha1
-      - name: Validate Stage 2 complete candidate
+      - name: Validate Stage 3 and 4 complete candidate
         run: npm test
       - name: Check JavaScript syntax
         run: npm run check
       - name: Build installable QA APK
         run: gradle :app:assembleDebug --stacktrace
       - name: Name APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v10-stage2-complete-qa.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v11-stage3-4-complete-qa.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v10-stage2-complete-qa
-          path: GHAZAL-v10-stage2-complete-qa.apk
+          name: GHAZAL-v11-stage3-4-complete-qa
+          path: GHAZAL-v11-stage3-4-complete-qa.apk
           if-no-files-found: error
           retention-days: 90

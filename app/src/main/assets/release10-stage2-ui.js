@@ -14,7 +14,7 @@
   function saveState(s){localStorage.setItem(R10_KEY,JSON.stringify(s));}
   function setResume(type,id,step){const s=state();s.resume=C.makeResume({type,id,step:step||0,level});saveState(s);}
   function getResume(){return state().resume||null;}
-  function log(kind,score,id){const s=state();s.attempts=s.attempts||[];s.attempts.push({kind,score,id,at:new Date().toISOString()});if(s.attempts.length>500)s.attempts=s.attempts.slice(-500);saveState(s);let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}os.skills=os.skills||{};const k=os.skills[kind]||{attempts:0,total:0,best:0};k.attempts=(k.attempts||0)+1;k.total=(k.total||0)+score;k.best=Math.max(k.best||0,score);k.lastAt=new Date().toISOString();os.skills[kind]=k;localStorage.setItem(OS_KEY,JSON.stringify(os));}
+  function log(kind,score,id){const s=state();s.attempts=s.attempts||[];s.attempts.push({kind,score,id,at:new Date().toISOString()});if(s.attempts.length>500)s.attempts=s.attempts.slice(-500);saveState(s);let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}os.skills=os.skills||{};const k=os.skills[kind]||{attempts:0,total:0,best:0};k.attempts=(k.attempts||0)+1;k.total=(k.total||0)+score;k.best=Math.max(k.best||0,score);k.lastAt=new Date().toISOString();os.skills[kind]=k;localStorage.setItem(OS_KEY,JSON.stringify(os));try{const ex=E.exercises.find(x=>x.id===id)||(current&&current.id===id?current:null);if(ex&&window.GhazalLearningBridge&&window.GhazalLearningBridge.record)window.GhazalLearningBridge.record(ex,score,{confidence:score>=85?90:score>=70?70:45,transfer:["contrast","reading","dictation","writing","speaking","exam"].includes(ex.type)});}catch(_){}}
 
   function hub(){
     const q=C.audit(),s=E.summary();
