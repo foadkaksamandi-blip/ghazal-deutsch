@@ -134,7 +134,7 @@ public class MainActivity extends FragmentActivity {
         settings.setSupportMultipleWindows(false);
         settings.setGeolocationEnabled(false);
         settings.setDatabaseEnabled(false);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) settings.setSafeBrowsingEnabled(true);
+        settings.setSafeBrowsingEnabled(true);
 
         CookieManager.getInstance().setAcceptCookie(false);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false);
