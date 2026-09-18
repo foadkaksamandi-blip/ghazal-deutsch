@@ -101,3 +101,25 @@ Until a backend exists, online-only features must be visibly unavailable rather 
 
 ## Definition of done for the current product phase
 The current product phase is not “done” until the offline app itself is a complete, functional educational product, all visible features are real, automated tests pass, manual device QA passes, and the architecture can accept a server later without replacing the core.
+
+
+## Locked roadmap status
+
+As of GHAZAL 12.0.0:
+
+- Stage 1 — Product Core: COMPLETE CANDIDATE.
+- Stage 2 — A1–C2 Educational Universe: COMPLETE CANDIDATE.
+- Stage 3 — Intelligent Learning Engine: COMPLETE CANDIDATE.
+- Stage 4 — Classroom / Teacher Product: COMPLETE CANDIDATE.
+- Stage 5 — Professional Product Features: COMPLETE CANDIDATE.
+- Stage 6 — Security / Anti-Tamper: CODE + HARDENING COMPLETE CANDIDATE.
+- Stage 7 — Heavy QA: NOT STARTED / next mandatory stage.
+- Stage 8 — Final Release: BLOCKED until Stage 7 passes and permanent production signing is configured.
+
+Stage 6 external security gates that remain intentionally outside source control:
+- permanent production keystore/private key creation and secure custody
+- GitHub production signing secrets
+- production signing certificate fingerprint confirmation
+- repository privacy before commercial source protection matters
+
+These external gates must never be bypassed by committing a private key, password, API key, or signing secret to the repository.
