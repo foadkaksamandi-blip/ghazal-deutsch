@@ -125,17 +125,17 @@ test('offline writing coach provides multidimensional diagnostics and catches kn
   assert.ok(rd.band.includes('TDN5'));
 });
 
-test('Release 10 web assets version and Android bridge are consistent',()=>{
+test('Release 10 assets survive later product versions',()=>{
   const root=path.join(__dirname,'..');
   const index=fs.readFileSync(path.join(root,'app/src/main/assets/index.html'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   for(const asset of ['release10-capstone-content.js','release10-advanced-content.js','release10-human-audio.js','release10-exercise-engine.js','release10-content-system.js','release10-offline-coach.js','release10-stage2-ui.js','release10-stage2.css']) assert.ok(index.includes(asset),asset);
-  assert.equal(pkg.version,'10.0.0');
-  assert.match(gradle,/versionCode 10/);
-  assert.match(gradle,/versionName "10\.0\.0"/);
-  assert.match(bridge,/activity == null \? "10\.0\.0"/);
+  assert.ok(Number(pkg.version.split('.')[0])>=10);
+  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=10);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(bridge.includes('activity == null ? "'+pkg.version+'"'));
 });
 
 test('build workflow pins and verifies every licensed human audio file',()=>{
@@ -143,7 +143,7 @@ test('build workflow pins and verifies every licensed human audio file',()=>{
   const wf=fs.readFileSync(path.join(root,'.github/workflows/android.yml'),'utf8');
   for(const name of ['De-guten_Tag2.ogg','De-Wie_geht_es_dir..ogg','De-Schritt_fuer_Schritt.ogg','De-darstellen.ogg','De-eintragen.ogg','De-at-deutsch.ogg']) assert.ok(wf.includes(name),name);
   assert.ok(wf.includes('sha1sum -c'));
-  assert.ok(wf.includes('GHAZAL-v10-stage2-complete-qa.apk'));
+  assert.ok(/GHAZAL-v\d+-.+-qa\.apk/.test(wf));
   const credits=fs.readFileSync(path.join(root,'docs/HUMAN_AUDIO_CREDITS.md'),'utf8');
   assert.ok(credits.includes('CC BY-SA 4.0'));
   assert.ok(credits.includes('CC BY 3.0 US'));
