@@ -544,11 +544,13 @@
   }
 
   function bindWelcomeButtons() {
-    const start = modalContent.querySelector("[data-action='start-placement']");
-    const skip = modalContent.querySelector("[data-action='skip-placement']");
+    const root = document.getElementById("ghz-welcome-root") || view;
+    const start = root.querySelector("[data-action='start-placement']");
+    const skip = root.querySelector("[data-action='skip-placement']");
     let handledAt = 0;
     function bind(button, fn) {
-      if (!button) return;
+      if (!button || button.dataset.ghzBound === "1") return;
+      button.dataset.ghzBound = "1";
       const run = event => {
         const now = Date.now();
         if (now - handledAt < 450) return;
@@ -568,9 +570,12 @@
   }
 
   function showWelcome() {
-    openModal(`
-      <div class="sheet-handle"></div>
-      <div class="onboarding">
+    document.body.classList.add("onboarding-active");
+    modal.hidden = true;
+    modal.dataset.locked = "false";
+    modalContent.innerHTML = "";
+    view.innerHTML = `
+      <section id="ghz-welcome-root" class="onboarding onboarding-page" aria-label="شروع GHAZAL">
         <div class="onboarding-mark">G</div>
         <h1>آلمانی برای غزل</h1>
         <p>مسیر شخصی یادگیری برای مهاجرت، زندگی واقعی، کار، دانشگاه و آمادگی آزمون؛ کاملاً آفلاین روی همین گوشی.</p>
@@ -578,9 +583,9 @@
         <button id="ghz-start-placement" class="primary-button welcome-action" type="button" data-action="start-placement">شروع ارزیابی اولیه</button>
         <button id="ghz-skip-placement" class="secondary-button welcome-action" type="button" style="margin-top:9px" data-action="skip-placement">شروع مستقیم از A1</button>
         <p class="welcome-build">نسخه 14.0.2 · Touch Fix 2</p>
-      </div>
-      <div class="signature">FOAD</div>
-    `, true);
+        <div class="signature">FOAD</div>
+      </section>
+    `;
     requestAnimationFrame(bindWelcomeButtons);
     setTimeout(bindWelcomeButtons, 120);
   }
@@ -621,6 +626,7 @@
   }
 
   function finishOnboarding(skip) {
+    document.body.classList.remove("onboarding-active");
     state.onboardingDone = true;
     state.profile.level = skip ? "A1" : placementLevel;
     selectedLevel = state.profile.level;
