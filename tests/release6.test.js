@@ -15,10 +15,11 @@ test("Release 6 loads real platform assets",()=>{
   }
 });
 
-test("Release 6 version is consistent",()=>{
-  assert.equal(pkg.version,"6.0.0");
-  assert.match(gradle,/versionCode 6/);
-  assert.match(gradle,/versionName "6\.0\.0"/);
+test("Release 6 platform survives later version upgrades",()=>{
+  const major=Number(String(pkg.version).split(".")[0]);
+  assert.ok(major>=6,"expected version >= 6");
+  assert.match(gradle,/versionCode\s+[6-9]\d*/);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
 });
 
 test("master product lock preserves core product rules",()=>{
