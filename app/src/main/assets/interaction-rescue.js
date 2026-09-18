@@ -50,10 +50,8 @@
     const map={action:"data-action",nav:"data-nav",osAction:"data-os-action",r3:"data-r3",r4:"data-r4",r5:"data-r5",r6:"data-r6",r7:"data-r7",r8:"data-r8",r9:"data-r9",r10:"data-r10",r11:"data-r11",r12:"data-r12",r13:"data-r13",r14:"data-r14"};
     const attr=map[key];
     if(!attr)return null;
-    try{
-      const escaped=String(value).replace(/\\/g,"\\\\").replace(/"/g,'\\"');
-      return document.querySelector("["+attr+"=\\\""+escaped+"\\\"]");
-    }catch(_){return null;}
+    try{return document.querySelector("["+attr+"="+JSON.stringify(String(value))+"]");}
+    catch(_){return null;}
   }
   function native(method,arg){
     try{
