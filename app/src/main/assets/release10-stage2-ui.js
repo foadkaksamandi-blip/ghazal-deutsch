@@ -1,6 +1,6 @@
 (function(){
   "use strict";
-  const E=window.GhazalExerciseEngine,A=window.GhazalAdvancedContent,C=window.GhazalContentSystem,view=document.getElementById("view"),modal=document.getElementById("modal"),box=document.getElementById("modal-content");
+  const E=window.GhazalExerciseEngine,A=window.GhazalAdvancedContent,C=window.GhazalContentSystem,H=window.GhazalHumanAudio,view=document.getElementById("view"),modal=document.getElementById("modal"),box=document.getElementById("modal-content");
   if(!E||!A||!C||!view||!modal||!box)return;
   const OS_KEY="ghazal_deutsch_os_v1",R10_KEY="ghazal_stage2_r10_v1",LEVELS=["A1","A2","B1","B2","C1","C2"];
   let level="A1",type="",current=null,audio=null,pack="idioms",packLevel="A1",speechMode="",previousSpeech=window.onSpeechResult;
@@ -22,6 +22,7 @@
       '<button class="r10-card" data-r10="practice"><strong>⚡ Smart Practice</strong><small>تمرین واقعی از کل محتوای A1 تا C2.</small></button>'+
       '<button class="r10-card" data-r10="packs"><strong>💬 Natural German</strong><small>Idioms، تلفن، دیجیتال، اداری، دانشگاه و حرفه‌ای.</small></button>'+
       '<button class="r10-card" data-r10="audio"><strong>🎧 Advanced Audio</strong><small>Micro-listening، Dictation، Segmentation و Shadowing.</small></button>'+
+      '<button class="r10-card" data-r10="human-audio"><strong>🎙 Human Native Pack</strong><small>'+(H&&H.clips?H.clips.length:0)+' کلیپ واقعی با مجوز و Attribution.</small></button>'+
       '<button class="r10-card" data-r10="pron"><strong>🗣 Pronunciation</strong><small>۲۴ الگوی تلفظ، Stress، Rhythm و Intonation.</small></button>'+
       '<button class="r10-card" data-r10="search"><strong>🔎 Global Search</strong><small>جستجو در درس، لغت، Grammar، Scenario و Exam.</small></button>'+
       '<button class="r10-card" data-r10="qa"><strong>✅ Content QA</strong><small>'+(q.pass?"تمام معیارهای خودکار Stage 2 پاس شده‌اند.":"مواردی برای اصلاح باقی مانده.")+'</small></button>'+
@@ -68,6 +69,13 @@
     '<div class="section-title"><h2>Shadowing</h2></div><button class="primary-button" data-r10="shadow">🎙 تکرار و ثبت</button>');
   }
 
+  function humanAudio(){
+    const clips=H&&Array.isArray(H.clips)?H.clips:[];
+    open(head("Human Native","صدای واقعی گویندگان آلمانی","فایل‌ها در Build رسمی از منابع دارای مجوز دریافت، Hash-verify و داخل APK قرار می‌گیرند.")+
+      '<div class="r10-list">'+clips.map(x=>'<div class="r10-item"><strong dir="ltr">'+h(x.text)+'</strong><small>'+h(x.voice+" · "+x.region+" · "+x.license)+'</small><div class="button-row" style="margin-top:7px"><button class="secondary-button" data-r10="human-play" data-file="'+encodeURIComponent(x.file)+'">▶ پخش</button><button class="secondary-button" data-r10="human-shadow" data-text="'+encodeURIComponent(x.text)+'">🎙 تکرار</button></div></div>').join("")+'</div>'+
+      '<div class="r10-box" style="margin-top:10px">Attribution و مجوزها در docs/HUMAN_AUDIO_CREDITS.md نگهداری می‌شوند. این فایل‌ها صدای انسان واقعی‌اند و با TTS اشتباه معرفی نمی‌شوند.</div>');
+  }
+
   function pronunciation(){
     const items=A.pronunciation.filter(x=>x.level===level);
     open(head("Pronunciation","تلفظ، Stress و Rhythm","راهنمای آفلاین + مدل TTS + Speech Recognition؛ این بخش تحلیل فونمی آزمایشگاهی نیست.")+
@@ -91,6 +99,7 @@
 
   window.onSpeechResult=function(text){
     if(speechMode==="shadow"&&audio){const score=E.compare(text,audio.text);log("shadowing",score,audio.id);const el=document.getElementById("r10-audio-result");if(el)el.innerHTML='<div class="r10-box" style="margin-top:8px"><b>Shadowing '+score+'%</b><span dir="ltr">'+h(text)+'</span></div>';speechMode="";return;}
+    if(speechMode==="human-shadow"&&audio){const score=E.compare(text,audio.text);log("human-shadowing",score,audio.id);speechMode="";native("toast","Native shadowing: "+score+"%");return;}
     if(speechMode==="pron"){log("pronunciation",70,"pron");speechMode="";return;}
     if(typeof previousSpeech==="function")previousSpeech(text);
   };
@@ -105,6 +114,9 @@
     else if(a==="packs")packs(); else if(a==="pack"){pack=t.dataset.pack;packs();} else if(a==="pack-level"){packLevel=t.dataset.level;packs();} else if(a==="pack-item")packItem(t.dataset.id);
     else if(a==="speak-text"){native("setSpeechRate",0.88);native("speak",decodeURIComponent(t.dataset.text||""));}
     else if(a==="audio")audioLab(); else if(a==="audio-level"){level=t.dataset.level;audioLab();} else if(a==="audio-item")audioItem(t.dataset.id);
+    else if(a==="human-audio")humanAudio();
+    else if(a==="human-play"){const src=decodeURIComponent(t.dataset.file||"");const player=new Audio(src);player.play().catch(()=>native("toast","فایل صوتی در این Build موجود نیست"));}
+    else if(a==="human-shadow"){speechMode="human-shadow";audio={text:decodeURIComponent(t.dataset.text||""),id:"human"};native("startSpeechRecognition","Native shadowing");}
     else if(a==="audio-play"&&audio){native("setSpeechRate",Number(t.dataset.rate)||0.9);native("speak",audio.text);}
     else if(a==="dict-check"&&audio){const score=E.compare(document.getElementById("r10-dict")?.value||"",audio.text);log("dictation",score,audio.id);document.getElementById("r10-audio-result").innerHTML='<div class="r10-box" style="margin-top:8px"><b>'+score+'%</b><span dir="ltr">'+h(audio.text)+'</span></div>';}
     else if(a==="shadow"&&audio){speechMode="shadow";native("startSpeechRecognition","Shadowing auf Deutsch");}
@@ -114,6 +126,6 @@
   document.addEventListener("change",e=>{if(e.target.id==="r10-level"||e.target.id==="r10-type"){level=document.getElementById("r10-level")?.value||"A1";type=document.getElementById("r10-type")?.value||"";practice();}});
   document.addEventListener("input",e=>{if(e.target.id==="r10-search"){const el=document.getElementById("r10-search-results");if(el)el.innerHTML=renderSearch(e.target.value);}});
 
-  function inject(){const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r10='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r10="hub"><span class="big-icon">🏁</span><strong>Stage 2 · Complete</strong><small>تمرین انبوه، زبان طبیعی، Audio، Pronunciation، Search و QA.</small></button>');}
+  function inject(){const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r10='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r10="hub"><span class="big-icon">🏁</span><strong>Stage 2 · Complete Candidate</strong><small>تمرین انبوه، زبان طبیعی، Audio، Pronunciation، Search و QA.</small></button>');}
   const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,400);
 })();
