@@ -105,7 +105,7 @@ The current product phase is not “done” until the offline app itself is a co
 
 ## Locked roadmap status
 
-As of GHAZAL 12.0.0:
+As of GHAZAL 13.0.0:
 
 - Stage 1 — Product Core: COMPLETE CANDIDATE.
 - Stage 2 — A1–C2 Educational Universe: COMPLETE CANDIDATE.
@@ -113,8 +113,8 @@ As of GHAZAL 12.0.0:
 - Stage 4 — Classroom / Teacher Product: COMPLETE CANDIDATE.
 - Stage 5 — Professional Product Features: COMPLETE CANDIDATE.
 - Stage 6 — Security / Anti-Tamper: CODE + HARDENING COMPLETE CANDIDATE.
-- Stage 7 — Heavy QA: NOT STARTED / next mandatory stage.
-- Stage 8 — Final Release: BLOCKED until Stage 7 passes and permanent production signing is configured.
+- Stage 7 — Heavy QA: IMPLEMENTED CANDIDATE — automated CI and in-app QA Center added; real-device critical matrix must still be executed and passed.
+- Stage 8 — Final Release: BLOCKED until Stage 7 real-device critical matrix passes and permanent production signing is configured.
 
 Stage 6 external security gates that remain intentionally outside source control:
 - permanent production keystore/private key creation and secure custody
