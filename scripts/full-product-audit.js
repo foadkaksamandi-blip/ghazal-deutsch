@@ -56,7 +56,7 @@ function load(){
   add("cross-skill-graph",x.adv.skillGraph&&Object.keys(x.adv.skillGraph).length>=8,{nodes:Object.keys(x.adv.skillGraph||{}).length});
   add("content-index",x.content.index&&x.content.index.length>=2500,{count:x.content.index&&x.content.index.length});
   const queries=["Wohnung","Behörde","Arbeit","Universität","TestDaF","Versicherung","Bewerbung","Seminar"];
-  add("global-search",queries.filter(q=>(x.content.search(q,{})||[]).length>0).length>=7,{queries:queries.map(q=>[q,(x.content.search(q,{})||[]).length])});
+  add("global-search",queries.filter(q=>(x.content.search(q,{})||[]).length>0).length===queries.length,{queries:queries.map(q=>[q,(x.content.search(q,{})||[]).length])});
   add("resume-continuity",typeof x.content.makeResume==="function"&&typeof x.product.setResume==="function"&&typeof x.product.clearResume==="function",{});
   add("state-migration",typeof x.content.migrateState==="function"&&typeof x.product.normalize==="function",{});
   add("weekly-monthly-reporting",typeof x.content.weeklyReport==="function"&&typeof x.content.monthlyReport==="function"&&typeof x.content.evidenceReport==="function",{});
