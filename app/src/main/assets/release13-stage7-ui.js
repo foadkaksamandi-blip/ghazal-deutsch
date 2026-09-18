@@ -1,7 +1,7 @@
 (function(){
   "use strict";
   const Q=window.GhazalQACore,R=window.GhazalRuntimeQuality,modal=document.getElementById("modal"),box=document.getElementById("modal-content"),view=document.getElementById("view");
-  if(!Q||!modal||!box||!view)return;
+  if(!Q||!modal||!box||!view)return;\n  try{if(window.GhazalAndroid&&typeof window.GhazalAndroid.getReleaseInfo==="function"){const ri=JSON.parse(window.GhazalAndroid.getReleaseInfo()||"{}");if(ri.qaToolsEnabled===false)return;}}catch(_){}
   const KEY="ghazal_qa_v1";let state=load(),activeCase=null;
   function h(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
   function native(method,...args){try{if(window.GhazalAndroid&&typeof window.GhazalAndroid[method]==="function")return window.GhazalAndroid[method](...args);}catch(_){}}
