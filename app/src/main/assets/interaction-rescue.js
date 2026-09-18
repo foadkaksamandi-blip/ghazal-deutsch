@@ -27,11 +27,25 @@
     return target;
   }
   function same(a,b){ return !!a && !!b && (a===b || a.contains(b) || b.contains(a)); }
+  function descriptor(target){
+    if(!target)return "";
+    const keys=["action","nav","osAction","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"];
+    for(const key of keys)if(target.dataset&&target.dataset[key])return key+":"+target.dataset[key];
+    return (target.id?"id:"+target.id:(target.tagName||"control").toLowerCase());
+  }
+  function native(method,arg){
+    try{
+      if(window.GhazalAndroid&&typeof window.GhazalAndroid[method]==="function"){
+        return window.GhazalAndroid[method](arg);
+      }
+    }catch(_){}
+  }
   function stamp(target,mode){
     try{
       target.dataset.ghzLastInteraction=mode;
       target.classList.add("ghz-touch-ack");
       setTimeout(()=>target.classList.remove("ghz-touch-ack"),160);
+      native("recordUiInteraction",descriptor(target)+"|"+mode);
     }catch(_){}
   }
   function activate(target,source){
@@ -88,6 +102,30 @@
     },90);
   }
 
+  let publishTimer=0;
+  function publishMap(){
+    if(!window.GhazalAndroid||typeof window.GhazalAndroid.publishInteractionMap!=="function")return;
+    const rows=[];
+    document.querySelectorAll(INTERACTIVE).forEach(el=>{
+      if(!el||el.disabled)return;
+      const rect=el.getBoundingClientRect();
+      if(rect.width<2||rect.height<2)return;
+      rows.push({
+        id:descriptor(el),
+        x:rect.left,
+        y:rect.top,
+        width:rect.width,
+        height:rect.height,
+        visible:rect.bottom>0&&rect.right>0&&rect.top<innerHeight&&rect.left<innerWidth
+      });
+    });
+    try{window.GhazalAndroid.publishInteractionMap(JSON.stringify(rows.slice(0,500)));}catch(_){}
+  }
+  function schedulePublish(){
+    clearTimeout(publishTimer);
+    publishTimer=setTimeout(publishMap,120);
+  }
+
   document.addEventListener("click",event=>{
     const target=interactive(event.target);
     if(!target) return;
@@ -107,6 +145,10 @@
     if(event.pointerType && event.pointerType!=="touch" && event.pointerType!=="pen") return;
     deferredTouch(event.target,"pointerup");
   },true);
+
+  new MutationObserver(schedulePublish).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden","class"]});
+  window.addEventListener("load",schedulePublish,{once:true});
+  setTimeout(schedulePublish,250);
 
   window.GhazalInteractionRescue={
     VERSION:"1.0.0",
