@@ -30,19 +30,27 @@ jobs:
           gradle-version: "8.9"
       - name: Build debug runtime-smoke APK
         run: gradle :app:assembleDebug --stacktrace
+      - name: Enable KVM acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "KVM device is unavailable; emulator may run in software mode"
+          fi
       - name: Emulator boot and real APK runtime smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 30
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           disable-animations: true
           script: bash scripts/android-emulator-smoke.sh
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v14-emulator-smoke
+          name: GHAZAL-v14-1-emulator-smoke
           path: qa/emulator
           if-no-files-found: warn
           retention-days: 30
