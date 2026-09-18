@@ -198,6 +198,12 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public String getReleaseInfo() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "{}" : activity.getReleaseInfo();
+    }
+
+    @JavascriptInterface
     public String getDeviceReport() {
         MainActivity activity = activityReference.get();
         return activity == null ? "{}" : activity.getDeviceReport();
