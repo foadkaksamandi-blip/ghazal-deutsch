@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Stage 7 Heavy QA + Hardened Android APK
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  heavy-qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -28,8 +28,7 @@ jobs:
         with:
           packages: platform-tools
       - name: Install Android platform
-        run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -44,23 +43,26 @@ jobs:
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/d/d3/De-darstellen.ogg" -o app/src/main/assets/human_audio/De-darstellen.ogg
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/6/69/De-eintragen.ogg" -o app/src/main/assets/human_audio/De-eintragen.ogg
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/8/83/De-at-deutsch.ogg" -o app/src/main/assets/human_audio/De-at-deutsch.ogg
-          printf '%s\n'             '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg'             'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg'             'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg'             '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg'             'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg'             '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
+          printf '%s\n' \
+            '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg' \
+            'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg' \
+            'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg' \
+            '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg' \
+            'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg' \
+            '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
           sha1sum -c /tmp/human_audio.sha1
       - name: Generate bundled asset integrity manifest
         run: |
           python - <<'PY'
           import hashlib, json, pathlib
           root=pathlib.Path("app/src/main/assets")
-          sec=root/"security"
-          sec.mkdir(parents=True, exist_ok=True)
+          sec=root/"security"; sec.mkdir(parents=True,exist_ok=True)
           files={}
           for p in sorted(root.rglob("*")):
-              if not p.is_file():
-                  continue
-              rel=p.relative_to(root).as_posix()
-              if rel=="security/asset-integrity.json":
-                  continue
-              files[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
+              if p.is_file():
+                  rel=p.relative_to(root).as_posix()
+                  if rel!="security/asset-integrity.json":
+                      files[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
           (sec/"asset-integrity.json").write_text(json.dumps({"version":1,"algorithm":"SHA-256","files":files},sort_keys=True,separators=(",",":")),encoding="utf-8")
           print("integrity files",len(files))
           PY
@@ -86,27 +88,46 @@ jobs:
               sys.exit(1)
           print("secret scan PASS")
           PY
-      - name: Validate Stage 5 and 6 complete candidate
+      - name: Unit and regression test suite
         run: npm test
-      - name: Check JavaScript syntax
+      - name: Stage 7 deterministic stress and fuzz QA
+        run: npm run qa:heavy
+      - name: JavaScript syntax validation
         run: npm run check
+      - name: Android lint
+        run: gradle :app:lintHardenedQa --stacktrace
       - name: Build hardened non-debuggable QA APK
         run: gradle :app:assembleHardenedQa --stacktrace
-      - name: Verify hardened APK
+      - name: Verify hardened APK signature alignment permissions and payload
         run: |
+          set -euo pipefail
           APK="app/build/outputs/apk/hardenedQa/app-hardenedQa.apk"
           test -f "$APK"
           $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK"
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
           if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then
-            echo "Hardened QA APK is debuggable"
-            exit 1
+            echo "Hardened QA APK is debuggable"; exit 1
           fi
-      - name: Name APK
-        run: cp app/build/outputs/apk/hardenedQa/app-hardenedQa.apk GHAZAL-v12-stage5-6-hardened-qa.apk
-      - name: Upload APK
+          if $ANDROID_HOME/build-tools/35.0.0/aapt dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
+            echo "Offline QA APK unexpectedly requests INTERNET"; exit 1
+          fi
+          unzip -l "$APK" | grep -q "assets/release13-qa-core.js"
+          unzip -l "$APK" | grep -q "assets/release13-stage7-ui.js"
+          unzip -l "$APK" | grep -q "assets/security/asset-integrity.json"
+          BYTES=$(stat -c%s "$APK")
+          test "$BYTES" -gt 300000
+          test "$BYTES" -lt 30000000
+          sha256sum "$APK" | tee qa/apk-sha256.txt
+      - name: Name Stage 7 APK
+        run: cp app/build/outputs/apk/hardenedQa/app-hardenedQa.apk GHAZAL-v13-stage7-heavy-qa.apk
+      - name: Upload Stage 7 QA evidence and APK
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v12-stage5-6-hardened-qa
-          path: GHAZAL-v12-stage5-6-hardened-qa.apk
+          name: GHAZAL-v13-stage7-heavy-qa
+          path: |
+            GHAZAL-v13-stage7-heavy-qa.apk
+            qa/stage7-heavy-qa-report.json
+            qa/apk-sha256.txt
+            app/build/reports/lint-results-hardenedQa.html
           if-no-files-found: error
           retention-days: 90
