@@ -94,6 +94,8 @@ jobs:
         run: npm run qa:heavy
       - name: Stage 8 final source and release gate
         run: npm run qa:final
+      - name: Full product requirement audit
+        run: npm run qa:product
       - name: JavaScript syntax validation
         run: npm run check
       - name: Android lint
@@ -132,6 +134,7 @@ jobs:
             GHAZAL-v14-stage8-final-qa.apk
             qa/stage7-heavy-qa-report.json
             qa/stage8-final-gate.json
+            qa/full-product-audit.json
             qa/apk-sha256.txt
             app/build/reports/lint-results-hardenedQa.html
           if-no-files-found: error
