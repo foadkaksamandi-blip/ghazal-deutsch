@@ -117,11 +117,14 @@
     return{type:String(activity&&activity.type||""),id:String(activity&&activity.id||""),step:Number(activity&&activity.step||0),level:String(activity&&activity.level||""),at:new Date().toISOString()};
   }
 
-  function weeklyReport(skillState){
-    const skills=skillState&&typeof skillState==="object"?skillState:{};
+  function evidenceReport(skillState,periodDays){
+    const skills=skillState&&typeof skillState==="object"?skillState:{},days=Math.max(1,Number(periodDays)||7);
     const rows=Object.entries(skills).map(([id,s])=>({id,attempts:Number(s.attempts)||0,avg:(Number(s.attempts)||0)?Math.round((Number(s.total)||0)/(Number(s.attempts)||1)):0,best:Number(s.best)||0,lastAt:s.lastAt||null})).sort((a,b)=>a.avg-b.avg);
-    return{generatedAt:new Date().toISOString(),weakest:rows.slice(0,5),strongest:rows.slice(-5).reverse(),totalAttempts:rows.reduce((n,x)=>n+x.attempts,0)};
+    const weakest=rows.slice(0,5),recommendations=weakest.map(x=>({skill:x.id,action:x.avg<50?"بازآموزی + تمرین هدایت‌شده":x.avg<70?"مرور فاصله‌دار + Transfer":"یک Challenge جدید و بدون Hint",priority:x.avg<50?"high":x.avg<70?"medium":"normal"}));
+    return{periodDays:days,generatedAt:new Date().toISOString(),weakest,strongest:rows.slice(-5).reverse(),totalAttempts:rows.reduce((n,x)=>n+x.attempts,0),recommendations};
   }
+  function weeklyReport(skillState){return evidenceReport(skillState,7);}
+  function monthlyReport(skillState){return evidenceReport(skillState,30);}
 
-  return{VERSION,SCHEMA,index,search,counts,audit,manifest,migrateState,makeResume,weeklyReport};
+  return{VERSION,SCHEMA,index,search,counts,audit,manifest,migrateState,makeResume,evidenceReport,weeklyReport,monthlyReport};
 });
