@@ -102,14 +102,14 @@ jobs:
           if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then exit 1; fi
       - name: Rename production artifacts
         run: |
-          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v12-production.apk
-          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v12-production.aab
+          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v13-production.apk
+          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v13-production.aab
       - name: Upload signed production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v12-production
+          name: GHAZAL-v13-production
           path: |
-            GHAZAL-v12-production.apk
-            GHAZAL-v12-production.aab
+            GHAZAL-v13-production.apk
+            GHAZAL-v13-production.aab
           if-no-files-found: error
           retention-days: 30
