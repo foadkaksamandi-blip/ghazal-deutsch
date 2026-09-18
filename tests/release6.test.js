@@ -18,7 +18,7 @@ test("Release 6 loads real platform assets",()=>{
 test("Release 6 platform survives later version upgrades",()=>{
   const major=Number(String(pkg.version).split(".")[0]);
   assert.ok(major>=6,"expected version >= 6");
-  assert.match(gradle,/versionCode\s+[6-9]\d*/);
+  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=6);
   assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
 });
 
