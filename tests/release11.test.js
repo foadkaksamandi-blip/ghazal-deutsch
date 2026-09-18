@@ -165,7 +165,7 @@ test('Stage 4 announcements, dashboards, PDF payload and server contracts are re
   assert.equal(contracts.idempotencyRequired,true);
 });
 
-test('Release 11 assets and Android version are wired consistently',()=>{
+test('Release 11 assets survive later product versions',()=>{
   const root=path.join(__dirname,'..');
   const index=fs.readFileSync(path.join(root,'app/src/main/assets/index.html'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
