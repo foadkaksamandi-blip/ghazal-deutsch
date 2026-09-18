@@ -51,3 +51,12 @@ test('final assets load locally and preserve universal cross navigation', () => 
   }
   assert.doesNotMatch(index, /https?:\/\//);
 });
+test('modal backdrop cannot intercept onboarding controls on Android WebView', () => {
+  const styles = fs.readFileSync(path.join(root, 'app/src/main/assets/styles.css'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'app/src/main/assets/app.js'), 'utf8');
+  assert.match(styles, /\.modal-backdrop\s*\{[\s\S]*pointer-events:\s*none\s*!important/);
+  assert.match(styles, /\.modal-sheet\s*\{[\s\S]*z-index:\s*2\s*!important/);
+  for (const token of ["bindWelcomeButtons","touchend","pointerup","ghz-start-placement","ghz-skip-placement"]) {
+    assert.ok(app.includes(token), token);
+  }
+});
