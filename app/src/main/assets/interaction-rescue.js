@@ -47,14 +47,13 @@
     if(split<0)return null;
     const key=id.slice(0,split),value=id.slice(split+1);
     if(key==="id")return document.getElementById(value);
-    const map={action:"action",nav:"nav",osAction:"os-action",r3:"r3",r4:"r4",r5:"r5",r6:"r6",r7:"r7",r8:"r8",r9:"r9",r10:"r10",r11:"r11",r12:"r12",r13:"r13",r14:"r14"};
+    const map={action:"data-action",nav:"data-nav",osAction:"data-os-action",r3:"data-r3",r4:"data-r4",r5:"data-r5",r6:"data-r6",r7:"data-r7",r8:"data-r8",r9:"data-r9",r10:"data-r10",r11:"data-r11",r12:"data-r12",r13:"data-r13",r14:"data-r14"};
     const attr=map[key];
     if(!attr)return null;
-    try{return document.querySelector("["+attr+"="+CSS.escape(JSON.stringify(value))+"]");}
-    catch(_){
-      try{return document.querySelector("["+attr+"='"+String(value).replace(/'/g,"\\'")+"']");}
-      catch(__){return null;}
-    }
+    try{
+      const escaped=String(value).replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+      return document.querySelector("["+attr+"=\\\""+escaped+"\\\"]");
+    }catch(_){return null;}
   }
   function native(method,arg){
     try{
