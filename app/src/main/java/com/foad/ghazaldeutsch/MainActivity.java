@@ -112,6 +112,7 @@ public class MainActivity extends FragmentActivity {
             return;
         }
         securityPreferences = getSharedPreferences(SECURITY_PREFS, MODE_PRIVATE);
+        migrateSecurityDefaultsForTouchFix();
         configureSystemBars();
         applyPrivacyScreen();
         createNotificationChannel();
@@ -138,7 +139,16 @@ public class MainActivity extends FragmentActivity {
 
         CookieManager.getInstance().setAcceptCookie(false);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false);
-        webView.setFilterTouchesWhenObscured(true);
+        // Compatibility hotfix: MIUI/Xiaomi screen-recorder and accessibility overlays can
+        // mark WebView touches as obscured and cause every in-app button to appear dead.
+        // The app has no payment/auth form inside the WebView; native biometric prompts
+        // remain protected by Android. Keep touch filtering off and preserve the other
+        // WebView/network hardening controls.
+        webView.setFilterTouchesWhenObscured(false);
+        webView.setClickable(true);
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
+        webView.requestFocus(View.FOCUS_DOWN);
         webView.addJavascriptInterface(new AndroidBridge(this), "GhazalAndroid");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
@@ -308,18 +318,33 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    private void migrateSecurityDefaultsForTouchFix() {
+        if (securityPreferences == null) return;
+        if (!securityPreferences.getBoolean("touch_compat_v14_0_1", false)) {
+            SharedPreferences.Editor editor = securityPreferences.edit()
+                    .putBoolean("touch_compat_v14_0_1", true);
+            if (!securityPreferences.getBoolean("privacy_user_selected", false)) {
+                editor.putBoolean("privacy_screen", false);
+            }
+            editor.apply();
+        }
+    }
+
     boolean isPrivacyScreenEnabled() {
-        return securityPreferences != null && securityPreferences.getBoolean("privacy_screen", true);
+        return securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false);
     }
 
     void setPrivacyScreenEnabled(boolean enabled) {
         if (securityPreferences == null) return;
-        securityPreferences.edit().putBoolean("privacy_screen", enabled).apply();
+        securityPreferences.edit()
+                .putBoolean("privacy_screen", enabled)
+                .putBoolean("privacy_user_selected", true)
+                .apply();
         runOnUiThread(this::applyPrivacyScreen);
     }
 
     private void applyPrivacyScreen() {
-        if (securityPreferences != null && securityPreferences.getBoolean("privacy_screen", true)) {
+        if (securityPreferences != null && securityPreferences.getBoolean("privacy_screen", false)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         } else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
@@ -855,7 +880,7 @@ public class MainActivity extends FragmentActivity {
 
     String appVersion() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (PackageManager.NameNotFoundException exception) { return "14.0.0"; }
+        catch (PackageManager.NameNotFoundException exception) { return "14.0.1"; }
     }
 
     @Override
