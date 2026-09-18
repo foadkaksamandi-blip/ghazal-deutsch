@@ -21,7 +21,7 @@ test('Stage 8 final core locks version package and offline privacy model',()=>{
 test('Stage 8 Android build is fail-closed for unsigned production releases',()=>{
   const gradle=read('app/build.gradle');
   assert.match(gradle,/versionCode\s+16/);
-  assert.match(gradle,/versionName\s+"14\.0\.1"/);
+  assert.match(gradle,/versionName\s+"14\.0\.2"/);
   assert.ok(gradle.includes('FINAL_RELEASE_BUILD", "true"'));
   assert.ok(gradle.includes('QA_INTERNAL_TOOLS_ENABLED", "false"'));
   assert.match(gradle,/RELEASE_CHANNEL[^\n]+production/);
