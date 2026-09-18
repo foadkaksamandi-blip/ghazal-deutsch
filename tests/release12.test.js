@@ -116,8 +116,9 @@ test('Stage 6 Android source implements runtime integrity crypto hook and signin
   for(const token of ['verifyBundledAssets','runCryptoSelfTest','isRuntimeHookRisk','signingCertificateSha256','isProductionSigned','getSecurityReport','310_000','PBKDF2WithHmacSHA256','AES/GCM/NoPadding'])assert.ok(main.includes(token),token);
   for(const token of ['verifyBundledAssets','runCryptoSelfTest','getSecurityReport','clearSecureSnapshot','setTextZoom'])assert.ok(bridge.includes(token),token);
   assert.ok(main.includes('version != 1 && version != 2'));
-  assert.ok(main.includes('return "12.0.0"'));
-  assert.ok(bridge.includes('return activity == null ? "12.0.0"'));
+  const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+  assert.ok(main.includes('return "'+pkg.version+'"'));
+  assert.ok(bridge.includes('return activity == null ? "'+pkg.version+'"'));
 });
 
 test('Stage 6 manifest and WebView hardening block backup cleartext and external networking',()=>{
@@ -140,8 +141,9 @@ test('Stage 6 manifest and WebView hardening block backup cleartext and external
 test('Stage 6 Gradle provides hardened QA and secret-backed production signing gate',()=>{
   const root=path.join(__dirname,'..');
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
-  assert.ok(gradle.includes('versionCode 12'));
-  assert.ok(gradle.includes('versionName "12.0.0"'));
+  const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+  const vc=gradle.match(/versionCode\s+(\d+)/); assert.ok(vc&&Number(vc[1])>=12);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
   assert.ok(gradle.includes('hardenedQa'));
   assert.ok(gradle.includes('debuggable false'));
   assert.ok(gradle.includes('minifyEnabled true'));
