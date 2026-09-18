@@ -21,7 +21,7 @@ const finalCore=read("app/src/main/assets/release14-final-core.js");
 const finalUi=read("app/src/main/assets/release14-final-ui.js");
 
 check("package-version",pkg.version==="14.0.1",pkg.version);
-check("android-version",/versionCode\s+15/.test(gradle)&&/versionName\s+"14\.0\.0"/.test(gradle));
+check("android-version",/versionCode\s+15/.test(gradle)&&/versionName\s+"14\.0\.1"/.test(gradle));
 check("application-id",/applicationId\s+"com\.foad\.ghazaldeutsch"/.test(gradle));
 check("min-target-sdk",/minSdk\s+26/.test(gradle)&&/targetSdk\s+35/.test(gradle));
 check("release-final-build-flag",gradle.includes('buildConfigField "boolean", "FINAL_RELEASE_BUILD", "true"'));
