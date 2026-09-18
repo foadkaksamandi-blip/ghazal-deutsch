@@ -209,6 +209,11 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    void setTextZoom(int percent) {
+        int safe = Math.max(85, Math.min(140, percent));
+        if (webView != null) runOnUiThread(() -> webView.getSettings().setTextZoom(safe));
+    }
+
     void setSpeechRate(float rate) {
         float safe = Math.max(0.55f, Math.min(1.35f, rate));
         if (textToSpeech != null) runOnUiThread(() -> textToSpeech.setSpeechRate(safe));
