@@ -152,7 +152,7 @@ public final class AndroidBridge {
     @JavascriptInterface
     public String getAppVersion() {
         MainActivity activity = activityReference.get();
-        return activity == null ? "4.0.0" : activity.appVersion();
+        return activity == null ? "10.0.0" : activity.appVersion();
     }
 
     @JavascriptInterface
