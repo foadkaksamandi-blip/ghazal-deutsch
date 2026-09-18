@@ -10,20 +10,16 @@
   <link rel="stylesheet" href="release3-extension.css">
   <link rel="stylesheet" href="release4-extension.css">
   <link rel="stylesheet" href="release5-extension.css">
+  <link rel="stylesheet" href="release6-platform.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">G</div>
-      <div class="brand-copy">
-        <strong>GHAZAL</strong>
-        <span>آلمانی برای زندگی واقعی</span>
-      </div>
+      <div class="brand-copy"><strong>GHAZAL</strong><span>آلمانی برای زندگی واقعی</span></div>
       <button class="icon-button" data-action="open-settings" aria-label="تنظیمات">⚙</button>
     </header>
-
     <main id="view" class="view" aria-live="polite"></main>
-
     <nav class="bottom-nav" aria-label="منوی اصلی">
       <button data-nav="home" class="active"><span>⌂</span><small>امروز</small></button>
       <button data-nav="path"><span>◫</span><small>مسیر</small></button>
@@ -32,12 +28,10 @@
       <button data-nav="profile"><span>◉</span><small>پیشرفت</small></button>
     </nav>
   </div>
-
   <div id="modal" class="modal" hidden>
     <div class="modal-backdrop" data-action="close-modal"></div>
     <section id="modal-content" class="modal-sheet" role="dialog" aria-modal="true"></section>
   </div>
-
   <div id="toast" class="toast" role="status" hidden></div>
   <input id="backup-file" type="file" accept="application/json" hidden>
 
@@ -45,11 +39,13 @@
   <script src="course-data.js"></script>
   <script src="release4-content.js"></script>
   <script src="release5-content.js"></script>
+  <script src="platform-core.js"></script>
   <script src="app.js"></script>
   <script src="os-extension.js"></script>
   <script src="release3-extension.js"></script>
   <script src="release4-extension.js"></script>
   <script src="release4-navigation.js"></script>
   <script src="release5-extension.js"></script>
+  <script src="release6-platform.js"></script>
 </body>
 </html>
