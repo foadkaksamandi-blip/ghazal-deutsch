@@ -150,9 +150,51 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public boolean isSpeechRecognitionAvailable() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isSpeechRecognitionAvailable();
+    }
+
+    @JavascriptInterface
+    public boolean isTextToSpeechReady() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isTextToSpeechReady();
+    }
+
+    @JavascriptInterface
+    public boolean isDebuggableBuild() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.isDebuggableBuild();
+    }
+
+    @JavascriptInterface
+    public boolean verifyBundledAssets() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.verifyBundledAssets();
+    }
+
+    @JavascriptInterface
+    public boolean runCryptoSelfTest() {
+        MainActivity activity = activityReference.get();
+        return activity != null && activity.runCryptoSelfTest();
+    }
+
+    @JavascriptInterface
+    public String getSecurityReport() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "{}" : activity.getSecurityReport();
+    }
+
+    @JavascriptInterface
+    public void clearSecureSnapshot() {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.clearSecureSnapshot();
+    }
+
+    @JavascriptInterface
     public String getAppVersion() {
         MainActivity activity = activityReference.get();
-        return activity == null ? "11.0.0" : activity.appVersion();
+        return activity == null ? "12.0.0" : activity.appVersion();
     }
 
     @JavascriptInterface
