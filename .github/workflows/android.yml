@@ -1,4 +1,4 @@
-name: Stage 7 Heavy QA + Hardened Android APK
+name: Stage 8 Final Gate + Hardened Android QA
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -92,6 +92,8 @@ jobs:
         run: npm test
       - name: Stage 7 deterministic stress and fuzz QA
         run: npm run qa:heavy
+      - name: Stage 8 final source and release gate
+        run: npm run qa:final
       - name: JavaScript syntax validation
         run: npm run check
       - name: Android lint
@@ -113,20 +115,23 @@ jobs:
           fi
           unzip -l "$APK" | grep -q "assets/release13-qa-core.js"
           unzip -l "$APK" | grep -q "assets/release13-stage7-ui.js"
+          unzip -l "$APK" | grep -q "assets/release14-final-core.js"
+          unzip -l "$APK" | grep -q "assets/release14-final-ui.js"
           unzip -l "$APK" | grep -q "assets/security/asset-integrity.json"
           BYTES=$(stat -c%s "$APK")
           test "$BYTES" -gt 300000
           test "$BYTES" -lt 30000000
           sha256sum "$APK" | tee qa/apk-sha256.txt
-      - name: Name Stage 7 APK
-        run: cp app/build/outputs/apk/hardenedQa/app-hardenedQa.apk GHAZAL-v13-stage7-heavy-qa.apk
-      - name: Upload Stage 7 QA evidence and APK
+      - name: Name Stage 8 candidate APK
+        run: cp app/build/outputs/apk/hardenedQa/app-hardenedQa.apk GHAZAL-v14-stage8-final-qa.apk
+      - name: Upload Stage 8 final-candidate evidence and APK
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v13-stage7-heavy-qa
+          name: GHAZAL-v14-stage8-final-qa
           path: |
             GHAZAL-v13-stage7-heavy-qa.apk
             qa/stage7-heavy-qa-report.json
+            qa/stage8-final-gate.json
             qa/apk-sha256.txt
             app/build/reports/lint-results-hardenedQa.html
           if-no-files-found: error

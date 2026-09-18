@@ -17,10 +17,13 @@ android {
         applicationId "com.foad.ghazaldeutsch"
         minSdk 26
         targetSdk 35
-        versionCode 13
-        versionName "13.0.0"
+        versionCode 14
+        versionName "14.0.0"
         buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
         buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
+        buildConfigField "boolean", "FINAL_RELEASE_BUILD", "false"
+        buildConfigField "boolean", "QA_INTERNAL_TOOLS_ENABLED", "true"
+        buildConfigField "String", "RELEASE_CHANNEL", "\"qa\""
     }
 
     signingConfigs {
@@ -49,12 +52,18 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", hasProdSigning ? "true" : "false"
             buildConfigField "String", "EXPECTED_CERT_SHA256", "\"${expectedCertSha256}\""
+            buildConfigField "boolean", "FINAL_RELEASE_BUILD", "true"
+            buildConfigField "boolean", "QA_INTERNAL_TOOLS_ENABLED", "false"
+            buildConfigField "String", "RELEASE_CHANNEL", "\"production\""
             if (hasProdSigning) signingConfig signingConfigs.production
         }
         debug {
             minifyEnabled false
             buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
             buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
+            buildConfigField "boolean", "FINAL_RELEASE_BUILD", "false"
+            buildConfigField "boolean", "QA_INTERNAL_TOOLS_ENABLED", "true"
+            buildConfigField "String", "RELEASE_CHANNEL", "\"debug\""
         }
         hardenedQa {
             initWith release
@@ -66,6 +75,9 @@ android {
             matchingFallbacks = ["release"]
             buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
             buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
+            buildConfigField "boolean", "FINAL_RELEASE_BUILD", "false"
+            buildConfigField "boolean", "QA_INTERNAL_TOOLS_ENABLED", "true"
+            buildConfigField "String", "RELEASE_CHANNEL", "\"hardened-qa\""
         }
     }
 
@@ -86,4 +98,13 @@ android {
 
 dependencies {
     implementation "androidx.biometric:biometric:1.1.0"
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def releaseRequested = graph.allTasks.any { t ->
+        t.path == ":app:assembleRelease" || t.path == ":app:bundleRelease" || t.path == ":app:packageRelease"
+    }
+    if (releaseRequested && !hasProdSigning) {
+        throw new GradleException("Production release requires GHZ_STORE_FILE, GHZ_STORE_PASSWORD, GHZ_KEY_ALIAS, GHZ_KEY_PASSWORD and GHZ_EXPECTED_CERT_SHA256")
+    }
 }

@@ -13,7 +13,7 @@
   if(root)root.GhazalQACore=api;
 })(typeof window!=="undefined"?window:null,function(Data,Exercises,Content,Dictionary,Learning,Classroom,Product,Security){
   "use strict";
-  const VERSION="13.0.0",SCHEMA=1;
+  const VERSION="14.0.0",SCHEMA=1;
   const LEVELS=["A1","A2","B1","B2","C1","C2"];
   const CRITICAL_CATEGORIES=new Set(["startup","security","offline","persistence","education","classroom"]);
   const MANUAL_CASES=[
@@ -137,7 +137,7 @@
       check("not-debuggable","security",true,native.debuggable!==true,{value:native.debuggable}),
       check("runtime-errors-24h","stability",false,runtime.pass,runtime),
       check("offline-network-policy","offline",true,native.cleartextDisabled!==false,{value:native.cleartextDisabled}),
-      check("app-version","startup",true,String(native.version||VERSION).startsWith("13."),{value:native.version||VERSION})
+      check("app-version","startup",true,String(native.version||VERSION).startsWith("14."),{value:native.version||VERSION})
     ];
     const criticalFailed=checks.filter(x=>x.critical&&!x.pass),failed=checks.filter(x=>!x.pass);
     const run={id:"qa-"+Date.now(),at:now(),version:VERSION,pass:criticalFailed.length===0,checks,failed:failed.map(x=>x.id),criticalFailed:criticalFailed.map(x=>x.id),device:ctx.device||null,durationMs:Number(ctx.durationMs)||0};

@@ -105,7 +105,7 @@ The current product phase is not “done” until the offline app itself is a co
 
 ## Locked roadmap status
 
-As of GHAZAL 13.0.0:
+As of GHAZAL 14.0.0:
 
 - Stage 1 — Product Core: COMPLETE CANDIDATE.
 - Stage 2 — A1–C2 Educational Universe: COMPLETE CANDIDATE.
@@ -114,9 +114,9 @@ As of GHAZAL 13.0.0:
 - Stage 5 — Professional Product Features: COMPLETE CANDIDATE.
 - Stage 6 — Security / Anti-Tamper: CODE + HARDENING COMPLETE CANDIDATE.
 - Stage 7 — Heavy QA: AUTOMATED PASS / DEVICE ACCEPTANCE PENDING — regression, stress/fuzz, syntax, Android lint, hardened APK build, signature/zipalign/permission/payload verification all pass; real-device critical matrix must still be executed and passed.
-- Stage 8 — Final Release: BLOCKED until Stage 7 real-device critical matrix passes and permanent production signing is configured.
+- Stage 8 — Final Release: CODE / PIPELINE COMPLETE CANDIDATE — final build identity, fail-closed signing, final QA gate, production APK/AAB workflow, release manifest/checksums and production-only QA hiding are implemented. Production publication remains externally blocked until Stage 7 real-device acceptance, permanent signing secrets and repository privacy are satisfied.
 
-Stage 6 external security gates that remain intentionally outside source control:
+Stage 8 external release gates that remain intentionally outside source control:
 - permanent production keystore/private key creation and secure custody
 - GitHub production signing secrets
 - production signing certificate fingerprint confirmation

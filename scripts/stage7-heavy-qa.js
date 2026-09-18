@@ -9,7 +9,7 @@ if(!globalThis.crypto)Object.defineProperty(globalThis,"crypto",{value:webcrypto
 
 const ROOT=path.join(__dirname,"..");
 const ASSETS=path.join(ROOT,"app/src/main/assets");
-const report={version:"13.0.0",startedAt:new Date().toISOString(),checks:[],metrics:{},failures:[]};
+const report={version:"14.0.0",startedAt:new Date().toISOString(),checks:[],metrics:{},failures:[]};
 function add(id,pass,detail={}){report.checks.push({id,pass:!!pass,detail});if(!pass)report.failures.push(id);}
 function assertCheck(id,condition,detail={}){add(id,!!condition,detail);if(!condition)throw new Error(id+" failed "+JSON.stringify(detail));}
 function safe(id,fn){try{const v=fn();add(id,true,v&&typeof v==="object"?v:{value:v});return v;}catch(err){add(id,false,{error:String(err&&err.stack||err)});return null;}}
@@ -144,7 +144,7 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
   const validLesson={id:"qa.pack.001",level:"A1",title:"QA pack",goal:"QA",words:[["Haus","خانه"],["gehen","رفتن"],["gut","خوب"]],dialogue:[["A","Hallo"],["B","Guten Tag"]],quiz:{q:"Q",options:["A","B"],answer:0}};
   const basePack={format:"ghazal-content-pack-v2",id:"qa-pack",version:"1.0.0",minAppVersion:"1.0.0",title:"QA",lessons:[validLesson]};
-  assertCheck("pack-valid",product.validatePack(basePack,"13.0.0").valid,{});
+  assertCheck("pack-valid",product.validatePack(basePack,"14.0.0").valid,{});
   const invalids=[
     {...basePack,javascript:"alert(1)"},
     {...basePack,format:"bad"},
@@ -152,7 +152,7 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
     {...basePack,minAppVersion:"99.0.0"},
     {...basePack,lessons:[{...validLesson,level:"Z9"}]}
   ];
-  assertCheck("pack-invalid-rejection",invalids.every(p=>!product.validatePack(p,"13.0.0").valid),{cases:invalids.length});
+  assertCheck("pack-invalid-rejection",invalids.every(p=>!product.validatePack(p,"14.0.0").valid),{cases:invalids.length});
 
   const badSecret=new FakeStorage({ghazal_bad:JSON.stringify({apiKey:"not-allowed-in-state"})});
   assertCheck("local-secret-scan",security.localSecretAudit(storage).pass&&!security.localSecretAudit(badSecret).pass,{});
@@ -183,12 +183,12 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   const main=fs.readFileSync(path.join(ROOT,"app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java"),"utf8");
   const bridge=fs.readFileSync(path.join(ROOT,"app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java"),"utf8");
   const index=fs.readFileSync(path.join(ASSETS,"index.html"),"utf8");
-  assertCheck("version-consistency",pkg.version==="13.0.0"&&gradle.includes('versionName "13.0.0"')&&main.includes('return "13.0.0"')&&bridge.includes('return activity == null ? "13.0.0"'),{pkg:pkg.version});
+  assertCheck("version-consistency",pkg.version==="14.0.0"&&gradle.includes('versionName "14.0.0"')&&main.includes('return "14.0.0"')&&bridge.includes('return activity == null ? "14.0.0"'),{pkg:pkg.version});
   for(const asset of ["release13-qa-core.js","release13-quality-runtime.js","release13-stage7-ui.js","release13-stage7.css"])if(!index.includes(asset))throw new Error("missing asset "+asset);
   add("stage7-assets-wired",true,{});
 
   const qaState=qa.initialState();
-  const auto=await qa.runAutomated(qaState,storage,{device:{version:"13.0.0",assetIntegrity:true,cryptoSelfTest:true,debuggable:false,cleartextDisabled:true}});
+  const auto=await qa.runAutomated(qaState,storage,{device:{version:"14.0.0",assetIntegrity:true,cryptoSelfTest:true,debuggable:false,cleartextDisabled:true}});
   assertCheck("qa-core-self-run",auto.run.pass,{failed:auto.run.failed});
 
   report.completedAt=new Date().toISOString();

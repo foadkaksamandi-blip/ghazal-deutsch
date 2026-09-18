@@ -40,7 +40,7 @@ function loadAll(){
 
 test('Stage 7 defines a real manual device matrix with critical release cases',()=>{
   const {qa}=loadAll();
-  assert.equal(qa.VERSION,'13.0.0');
+  assert.ok(Number(qa.VERSION.split('.')[0])>=13);
   assert.ok(qa.MANUAL_CASES.length>=25);
   const ids=new Set(qa.MANUAL_CASES.map(x=>x.id));
   assert.equal(ids.size,qa.MANUAL_CASES.length);
@@ -68,9 +68,9 @@ test('Stage 7 runtime error ledger is bounded and release evidence is serializab
   let s=qa.initialState();
   for(let i=0;i<140;i++)s=qa.recordRuntimeError(s,{type:'test',message:'error '+i,stack:'x'.repeat(100)});
   assert.equal(s.runtimeErrors.length,100);
-  const evidence=qa.evidence(s,{version:'13.0.0',model:'QA',productionSigned:false});
+  const evidence=qa.evidence(s,{version:qa.VERSION,model:'QA',productionSigned:false});
   assert.equal(evidence.format,'ghazal-stage7-qa-evidence-v1');
-  assert.equal(evidence.version,'13.0.0');
+  assert.equal(evidence.version,qa.VERSION);
   assert.ok(JSON.stringify(evidence).length>100);
 });
 
@@ -82,7 +82,7 @@ test('Stage 7 automated core audits content storage product and security without
     ghazal_product_v12:JSON.stringify({})
   });
   const before=[...storage.map.entries()];
-  const out=await qa.runAutomated(qa.initialState(),storage,{device:{version:'13.0.0',assetIntegrity:true,cryptoSelfTest:true,debuggable:false,cleartextDisabled:true}});
+  const out=await qa.runAutomated(qa.initialState(),storage,{device:{version:qa.VERSION,assetIntegrity:true,cryptoSelfTest:true,debuggable:false,cleartextDisabled:true}});
   assert.equal(out.run.pass,true,JSON.stringify(out.run.failed));
   assert.ok(out.run.checks.length>=12);
   assert.deepEqual([...storage.map.entries()],before);
@@ -107,8 +107,9 @@ test('Stage 7 native bridge exposes device diagnostics and QA evidence export',(
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   for(const token of ['getDeviceReport','exportQaEvidence','REQUEST_QA_EXPORT','GHAZAL-stage7-QA-evidence.json'])assert.ok(main.includes(token),token);
   for(const token of ['getDeviceReport','exportQaEvidence'])assert.ok(bridge.includes(token),token);
-  assert.ok(main.includes('return "13.0.0"'));
-  assert.ok(bridge.includes('return activity == null ? "13.0.0"'));
+  const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+  assert.ok(main.includes('return "'+pkg.version+'"'));
+  assert.ok(bridge.includes('return activity == null ? "'+pkg.version+'"'));
 });
 
 test('Stage 7 UI assets are wired after the educational product and include QA Center',()=>{
@@ -121,25 +122,25 @@ test('Stage 7 UI assets are wired after the educational product and include QA C
   for(const token of ['Full Automated QA','Device Matrix','Runtime Errors','Stage 7 Gate','Export Evidence'])assert.ok(ui.includes(token),token);
 });
 
-test('Stage 7 version is consistent across package Gradle native bridge and QA core',()=>{
+test('Stage 7 version stays aligned with the current forward release',()=>{
   const root=path.join(__dirname,'..');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   const main=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   const qa=fs.readFileSync(path.join(root,'app/src/main/assets/release13-qa-core.js'),'utf8');
-  assert.equal(pkg.version,'13.0.0');
-  assert.match(gradle,/versionCode 13/);
-  assert.match(gradle,/versionName "13\.0\.0"/);
-  assert.ok(main.includes('return "13.0.0"'));
-  assert.ok(bridge.includes('return activity == null ? "13.0.0"'));
-  assert.ok(qa.includes('const VERSION="13.0.0"'));
+  const major=Number(pkg.version.split('.')[0]);
+  assert.ok(major>=13);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(main.includes('return "'+pkg.version+'"'));
+  assert.ok(bridge.includes('return activity == null ? "'+pkg.version+'"'));
+  assert.ok(qa.includes('const VERSION="'+pkg.version+'"'));
 });
 
 test('Stage 7 CI runs regression stress lint and hardened APK verification',()=>{
   const root=path.join(__dirname,'..');
   const wf=fs.readFileSync(path.join(root,'.github/workflows/android.yml'),'utf8');
-  for(const token of ['Unit and regression test suite','Stage 7 deterministic stress and fuzz QA','Android lint','assembleHardenedQa','zipalign -c','aapt dump permissions','release13-qa-core.js','stage7-heavy-qa-report.json','GHAZAL-v13-stage7-heavy-qa.apk'])assert.ok(wf.includes(token),token);
+  for(const token of ['Unit and regression test suite','Stage 7 deterministic stress and fuzz QA','Android lint','assembleHardenedQa','zipalign -c','aapt dump permissions','release13-qa-core.js','stage7-heavy-qa-report.json'])assert.ok(wf.includes(token),token);
 });
 
 test('production workflow cannot bypass Stage 7 heavy QA before signing',()=>{
