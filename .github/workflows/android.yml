@@ -129,7 +129,7 @@ jobs:
         with:
           name: GHAZAL-v14-stage8-final-qa
           path: |
-            GHAZAL-v13-stage7-heavy-qa.apk
+            GHAZAL-v14-stage8-final-qa.apk
             qa/stage7-heavy-qa-report.json
             qa/stage8-final-gate.json
             qa/apk-sha256.txt
