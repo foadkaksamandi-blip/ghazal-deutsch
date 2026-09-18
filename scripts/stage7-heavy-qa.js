@@ -5,7 +5,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 const {performance}=require("node:perf_hooks");
 const {webcrypto}=require("node:crypto");
-global.crypto=webcrypto;
+if(!globalThis.crypto)Object.defineProperty(globalThis,"crypto",{value:webcrypto,configurable:true});
 
 const ROOT=path.join(__dirname,"..");
 const ASSETS=path.join(ROOT,"app/src/main/assets");
