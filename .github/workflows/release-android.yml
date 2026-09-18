@@ -75,9 +75,10 @@ jobs:
                       files[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
           (sec/"asset-integrity.json").write_text(json.dumps({"version":1,"algorithm":"SHA-256","files":files},sort_keys=True,separators=(",",":")),encoding="utf-8")
           PY
-      - name: Run tests and source checks
+      - name: Run Stage 7 release-gate tests and source checks
         run: |
           npm test
+          npm run qa:heavy
           npm run check
       - name: Build signed production APK and AAB
         env:
