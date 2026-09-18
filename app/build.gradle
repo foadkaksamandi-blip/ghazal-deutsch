@@ -2,6 +2,13 @@ plugins {
     id "com.android.application"
 }
 
+def prodStoreFile = project.findProperty("GHZ_STORE_FILE") ?: ""
+def prodStorePassword = project.findProperty("GHZ_STORE_PASSWORD") ?: ""
+def prodKeyAlias = project.findProperty("GHZ_KEY_ALIAS") ?: ""
+def prodKeyPassword = project.findProperty("GHZ_KEY_PASSWORD") ?: ""
+def expectedCertSha256 = project.findProperty("GHZ_EXPECTED_CERT_SHA256") ?: ""
+def hasProdSigning = prodStoreFile && prodStorePassword && prodKeyAlias && prodKeyPassword && expectedCertSha256
+
 android {
     namespace "com.foad.ghazaldeutsch"
     compileSdk 35
@@ -10,24 +17,70 @@ android {
         applicationId "com.foad.ghazaldeutsch"
         minSdk 26
         targetSdk 35
-        versionCode 11
-        versionName "11.0.0"
+        versionCode 12
+        versionName "12.0.0"
+        buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
+        buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
+    }
+
+    signingConfigs {
+        if (hasProdSigning) {
+            production {
+                storeFile file(prodStoreFile)
+                storePassword prodStorePassword
+                keyAlias prodKeyAlias
+                keyPassword prodKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+                enableV4Signing true
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
+            debuggable false
+            jniDebuggable false
+            renderscriptDebuggable false
+            zipAlignEnabled true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", hasProdSigning ? "true" : "false"
+            buildConfigField "String", "EXPECTED_CERT_SHA256", "\"${expectedCertSha256}\""
+            if (hasProdSigning) signingConfig signingConfigs.production
         }
         debug {
             minifyEnabled false
+            buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
+            buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
         }
+        hardenedQa {
+            initWith release
+            signingConfig signingConfigs.debug
+            debuggable false
+            jniDebuggable false
+            minifyEnabled true
+            shrinkResources true
+            matchingFallbacks = ["release"]
+            buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
+            buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
     }
 }
 

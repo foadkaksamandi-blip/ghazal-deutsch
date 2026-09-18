@@ -7,6 +7,9 @@ import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.Signature;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -14,6 +17,7 @@ import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Debug;
 import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -25,6 +29,7 @@ import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -36,8 +41,10 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,9 +52,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executor;
 
@@ -69,7 +78,7 @@ public class MainActivity extends FragmentActivity {
     private static final int REQUEST_SECURE_EXPORT = 4105;
     private static final int REQUEST_SECURE_IMPORT = 4106;
     private static final int REQUEST_PDF_EXPORT = 4107;
-    private static final int MAX_BACKUP_BYTES = 3_000_000;
+    private static final int MAX_BACKUP_BYTES = 8_000_000;
     private static final long RELOCK_AFTER_MS = 5_000L;
     private static final String SECURITY_PREFS = "ghazal_security";
     private static final String SNAPSHOT_ALIAS = "GHAZAL_SNAPSHOT_AES_V1";
@@ -87,6 +96,7 @@ public class MainActivity extends FragmentActivity {
     private SharedPreferences securityPreferences;
     private boolean appUnlocked = false;
     private boolean authInProgress = false;
+    private boolean ttsReady = false;
     private long backgroundedAt = 0L;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
@@ -112,6 +122,10 @@ public class MainActivity extends FragmentActivity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setSaveFormData(false);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+        settings.setSupportMultipleWindows(false);
+        settings.setGeolocationEnabled(false);
+        settings.setDatabaseEnabled(false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) settings.setSafeBrowsingEnabled(true);
 
         CookieManager.getInstance().setAcceptCookie(false);
@@ -124,6 +138,18 @@ public class MainActivity extends FragmentActivity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 return uri == null || !"file".equalsIgnoreCase(uri.getScheme());
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                Uri uri = request == null ? null : request.getUrl();
+                if (uri != null) {
+                    String scheme = uri.getScheme();
+                    if (scheme != null && !"file".equalsIgnoreCase(scheme) && !"data".equalsIgnoreCase(scheme)) {
+                        return new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
             }
 
             @Override
@@ -178,8 +204,14 @@ public class MainActivity extends FragmentActivity {
             if (status == TextToSpeech.SUCCESS) {
                 textToSpeech.setLanguage(Locale.GERMAN);
                 textToSpeech.setSpeechRate(0.88f);
+                ttsReady = true;
             }
         });
+    }
+
+    void setTextZoom(int percent) {
+        int safe = Math.max(85, Math.min(140, percent));
+        if (webView != null) runOnUiThread(() -> webView.getSettings().setTextZoom(safe));
     }
 
     void setSpeechRate(float rate) {
@@ -458,14 +490,19 @@ public class MainActivity extends FragmentActivity {
         SecureRandom random = new SecureRandom();
         byte[] salt = new byte[16]; random.nextBytes(salt);
         byte[] iv = new byte[12]; random.nextBytes(iv);
-        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 120_000, 256);
+        int iterations = 310_000;
+        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, iterations, 256);
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        SecretKey key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+        SecretKey key;
+        try { key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES"); }
+        finally { spec.clearPassword(); }
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
         byte[] encrypted = cipher.doFinal(plain.getBytes(StandardCharsets.UTF_8));
         JSONObject out = new JSONObject();
-        out.put("v",1);
+        out.put("v",2);
+        out.put("kdf","PBKDF2WithHmacSHA256");
+        out.put("iterations",iterations);
         out.put("salt", Base64.encodeToString(salt, Base64.NO_WRAP));
         out.put("iv", Base64.encodeToString(iv, Base64.NO_WRAP));
         out.put("cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP));
@@ -474,13 +511,18 @@ public class MainActivity extends FragmentActivity {
 
     private String decryptPortable(String payload, String passphrase) throws Exception {
         JSONObject in = new JSONObject(payload);
-        if (in.optInt("v",0) != 1) throw new IllegalArgumentException("Unsupported backup");
+        int version = in.optInt("v",0);
+        if (version != 1 && version != 2) throw new IllegalArgumentException("Unsupported backup");
+        int iterations = version == 1 ? 120_000 : in.optInt("iterations",310_000);
+        if (iterations < 120_000 || iterations > 1_000_000) throw new IllegalArgumentException("Invalid KDF");
         byte[] salt = Base64.decode(in.getString("salt"), Base64.NO_WRAP);
         byte[] iv = Base64.decode(in.getString("iv"), Base64.NO_WRAP);
         byte[] encrypted = Base64.decode(in.getString("cipher"), Base64.NO_WRAP);
-        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 120_000, 256);
+        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, iterations, 256);
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        SecretKey key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+        SecretKey key;
+        try { key = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES"); }
+        finally { spec.clearPassword(); }
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
         return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
@@ -528,6 +570,167 @@ public class MainActivity extends FragmentActivity {
         return generator.generateKey();
     }
 
+    boolean isSpeechRecognitionAvailable() {
+        return SpeechRecognizer.isRecognitionAvailable(this);
+    }
+
+    boolean isTextToSpeechReady() {
+        return ttsReady;
+    }
+
+    boolean isDebuggableBuild() {
+        return (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    boolean isRuntimeHookRisk() {
+        if (Debug.isDebuggerConnected() || Debug.waitingForDebugger()) return true;
+        try {
+            File status = new File("/proc/self/status");
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.FileInputStream(status), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("TracerPid:")) {
+                        int pid = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+                        if (pid != 0) return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+        try {
+            File maps = new File("/proc/self/maps");
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.FileInputStream(maps), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String low = line.toLowerCase(Locale.ROOT);
+                    if (low.contains("frida") || low.contains("xposed") || low.contains("substrate") || low.contains("zygisk") || low.contains("riru")) return true;
+                }
+            }
+        } catch (Exception ignored) { }
+        String[] packages = {"org.lsposed.manager","de.robv.android.xposed.installer","com.saurik.substrate"};
+        for (String packageName : packages) {
+            try { getPackageManager().getPackageInfo(packageName, 0); return true; }
+            catch (PackageManager.NameNotFoundException ignored) { }
+        }
+        return false;
+    }
+
+    String signingCertificateSha256() {
+        try {
+            PackageInfo info;
+            Signature[] signatures;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+                if (info.signingInfo == null) return "";
+                signatures = info.signingInfo.hasMultipleSigners()
+                        ? info.signingInfo.getApkContentsSigners()
+                        : info.signingInfo.getSigningCertificateHistory();
+            } else {
+                info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
+                signatures = info.signatures;
+            }
+            if (signatures == null || signatures.length == 0) return "";
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(signatures[0].toByteArray());
+            StringBuilder out = new StringBuilder();
+            for (byte b : hash) out.append(String.format(Locale.ROOT, "%02x", b));
+            return out.toString();
+        } catch (Exception ignored) { return ""; }
+    }
+
+    boolean isProductionSigned() {
+        if (!BuildConfig.PRODUCTION_SIGNING_ENABLED) return false;
+        String expected = BuildConfig.EXPECTED_CERT_SHA256 == null ? "" : BuildConfig.EXPECTED_CERT_SHA256.replace(":", "").trim().toLowerCase(Locale.ROOT);
+        String actual = signingCertificateSha256().replace(":", "").trim().toLowerCase(Locale.ROOT);
+        return !expected.isEmpty() && expected.equals(actual);
+    }
+
+    String installerSource() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                String source = getPackageManager().getInstallSourceInfo(getPackageName()).getInstallingPackageName();
+                return source == null ? "sideload" : source;
+            }
+            String source = getPackageManager().getInstallerPackageName(getPackageName());
+            return source == null ? "sideload" : source;
+        } catch (Exception ignored) { return "unknown"; }
+    }
+
+    boolean runCryptoSelfTest() {
+        try {
+            byte[] iv = new byte[12]; new SecureRandom().nextBytes(iv);
+            SecretKey key = getSnapshotKey();
+            Cipher enc = Cipher.getInstance("AES/GCM/NoPadding");
+            enc.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
+            byte[] cipherText = enc.doFinal("GHAZAL-CRYPTO-SELFTEST".getBytes(StandardCharsets.UTF_8));
+            Cipher dec = Cipher.getInstance("AES/GCM/NoPadding");
+            dec.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
+            return "GHAZAL-CRYPTO-SELFTEST".equals(new String(dec.doFinal(cipherText), StandardCharsets.UTF_8));
+        } catch (Exception ignored) { return false; }
+    }
+
+    private String sha256Asset(String path) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream input = getAssets().open(path)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+        }
+        StringBuilder out = new StringBuilder();
+        for (byte b : digest.digest()) out.append(String.format(Locale.ROOT, "%02x", b));
+        return out.toString();
+    }
+
+    boolean verifyBundledAssets() {
+        try {
+            String manifest;
+            try (InputStream input = getAssets().open("security/asset-integrity.json");
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
+                StringBuilder b = new StringBuilder(); String line;
+                while ((line = reader.readLine()) != null) b.append(line);
+                manifest = b.toString();
+            }
+            JSONObject root = new JSONObject(manifest);
+            JSONObject files = root.getJSONObject("files");
+            Iterator<String> keys = files.keys();
+            int checked = 0;
+            while (keys.hasNext()) {
+                String path = keys.next();
+                String expected = files.getString(path);
+                if (!expected.equalsIgnoreCase(sha256Asset(path))) return false;
+                checked++;
+            }
+            return checked >= 10;
+        } catch (Exception ignored) { return false; }
+    }
+
+    void clearSecureSnapshot() {
+        if (securityPreferences != null) securityPreferences.edit().remove(SNAPSHOT_PREF).apply();
+    }
+
+    String getSecurityReport() {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("version", appVersion());
+            out.put("appLock", isAppLockEnabled());
+            out.put("deviceSecurity", isDeviceSecurityAvailable());
+            out.put("privacyScreen", isPrivacyScreenEnabled());
+            out.put("rootRisk", isDeviceCompromised());
+            out.put("hookRisk", isRuntimeHookRisk());
+            out.put("debugger", Debug.isDebuggerConnected() || Debug.waitingForDebugger());
+            out.put("debuggable", isDebuggableBuild());
+            out.put("assetIntegrity", verifyBundledAssets());
+            out.put("cryptoSelfTest", runCryptoSelfTest());
+            out.put("speechRecognition", isSpeechRecognitionAvailable());
+            out.put("ttsReady", isTextToSpeechReady());
+            out.put("signingSha256", signingCertificateSha256());
+            out.put("productionSigned", isProductionSigned());
+            out.put("installer", installerSource());
+            out.put("cleartextDisabled", true);
+            out.put("webViewDebugging", false);
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
     void exportProgressPdf(String json) {
         if (json == null || json.length() > MAX_BACKUP_BYTES) { showToast("گزارش معتبر نیست"); return; }
         pendingReportJson = json;
@@ -550,9 +753,12 @@ public class MainActivity extends FragmentActivity {
         int y = 55;
         canvas.drawText("GHAZAL — Progress Report",40,y,title); y+=32;
         canvas.drawText("Generated: "+report.optString("generatedAt",""),40,y,text); y+=20;
-        canvas.drawText("Name: "+report.optString("name","Ghazal")+"   CEFR: "+report.optString("level","A1"),40,y,strong); y+=28;
+        JSONObject profile = report.optJSONObject("profile");
+        String reportName = profile != null ? profile.optString("name","Learner") : report.optString("name","Ghazal");
+        String reportLevel = profile != null ? profile.optString("level","A1") : report.optString("level","A1");
+        canvas.drawText("Name: "+reportName+"   CEFR: "+reportLevel,40,y,strong); y+=28;
         JSONObject progress=report.optJSONObject("progress");
-        if(progress!=null){canvas.drawText("Completed lessons: "+progress.optInt("completedLessons",0),40,y,text);y+=18;canvas.drawText("XP: "+progress.optInt("xp",0)+"   Streak: "+progress.optInt("streak",0)+"   Saved errors: "+progress.optInt("errors",0),40,y,text);y+=28;}
+        if(progress!=null){canvas.drawText("Completed lessons: "+progress.optInt("completedLessons",0),40,y,text);y+=18;canvas.drawText("XP: "+progress.optInt("xp",0)+"   Streak: "+progress.optInt("streak",0),40,y,text);y+=28;}
         canvas.drawText("Skill averages",40,y,strong); y+=22;
         JSONObject skills=report.optJSONObject("skills");
         if(skills!=null){Iterator<String> keys=skills.keys();while(keys.hasNext()&&y<760){String key=keys.next();if("errors".equals(key))continue;JSONObject s=skills.optJSONObject(key);if(s==null)continue;canvas.drawText(key+": "+s.optInt("avg",0)+"%  attempts="+s.optInt("attempts",0),55,y,text);y+=18;}}
@@ -567,7 +773,7 @@ public class MainActivity extends FragmentActivity {
 
     String appVersion() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (PackageManager.NameNotFoundException exception) { return "4.0.0"; }
+        catch (PackageManager.NameNotFoundException exception) { return "12.0.0"; }
     }
 
     @Override

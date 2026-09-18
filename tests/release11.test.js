@@ -165,17 +165,17 @@ test('Stage 4 announcements, dashboards, PDF payload and server contracts are re
   assert.equal(contracts.idempotencyRequired,true);
 });
 
-test('Release 11 assets and Android version are wired consistently',()=>{
+test('Release 11 assets survive later product versions',()=>{
   const root=path.join(__dirname,'..');
   const index=fs.readFileSync(path.join(root,'app/src/main/assets/index.html'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   for(const asset of ['release11-learning-engine.js','release11-classroom-core.js','release11-stage34-ui.js','release11-stage34.css']) assert.ok(index.includes(asset),asset);
-  assert.equal(pkg.version,'11.0.0');
-  assert.match(gradle,/versionCode 11/);
-  assert.match(gradle,/versionName "11\.0\.0"/);
-  assert.match(bridge,/activity == null \? "11\.0\.0"/);
+  assert.ok(Number(pkg.version.split('.')[0])>=11);
+  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=11);
+  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(bridge.includes('activity == null ? "'+pkg.version+'"'));
   const wf=fs.readFileSync(path.join(root,'.github/workflows/android.yml'),'utf8');
-  assert.ok(wf.includes('GHAZAL-v11-stage3-4-complete-qa.apk'));
+  assert.ok(/GHAZAL-v\d+-.+-qa\.apk/.test(wf));
 });
