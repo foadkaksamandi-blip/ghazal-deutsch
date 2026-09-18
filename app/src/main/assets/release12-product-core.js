@@ -10,7 +10,7 @@
   if(root)root.GhazalProductCore=api;
 })(typeof window!=="undefined"?window:null,function(Content,Dictionary,Platform,Learning,Classroom){
   "use strict";
-  const PRODUCT_VERSION="14.0.1";
+  const PRODUCT_VERSION="14.0.2";
   const PRODUCT_SCHEMA=4;
   const BACKUP_SCHEMA=2;
   const KEY="ghazal_product_v12";
