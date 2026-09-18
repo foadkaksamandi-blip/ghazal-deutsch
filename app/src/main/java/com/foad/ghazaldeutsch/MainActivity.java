@@ -329,13 +329,58 @@ public class MainActivity extends FragmentActivity {
         NotificationScheduler.cancel(this);
     }
 
+    void recordUiInteraction(String descriptor) {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED) return;
+        SharedPreferences prefs = getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE);
+        int count = prefs.getInt("count", 0) + 1;
+        prefs.edit()
+                .putString("last_action", descriptor == null ? "" : descriptor)
+                .putLong("last_action_at", System.currentTimeMillis())
+                .putInt("count", count)
+                .apply();
+    }
+
+    void publishInteractionMap(String json) {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED || webView == null) return;
+        int[] location = new int[]{0, 0};
+        webView.getLocationOnScreen(location);
+        JSONObject wrapper = new JSONObject();
+        try {
+            wrapper.put("map", new JSONArray(json == null || json.trim().isEmpty() ? "[]" : json));
+            wrapper.put("viewX", location[0]);
+            wrapper.put("viewY", location[1]);
+            wrapper.put("density", getResources().getDisplayMetrics().density);
+            wrapper.put("width", webView.getWidth());
+            wrapper.put("height", webView.getHeight());
+            wrapper.put("updatedAt", System.currentTimeMillis());
+        } catch (Exception ignored) { }
+        getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE)
+                .edit().putString("ui_map", wrapper.toString()).apply();
+    }
+
+    String getInteractionQaState() {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED) return "{}";
+        SharedPreferences prefs = getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE);
+        JSONObject out = new JSONObject();
+        try {
+            out.put("lastAction", prefs.getString("last_action", ""));
+            out.put("lastActionAt", prefs.getLong("last_action_at", 0L));
+            out.put("count", prefs.getInt("count", 0));
+            out.put("uiMap", prefs.getString("ui_map", "{}"));
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
     boolean isAppLockEnabled() {
-        return securityPreferences != null && securityPreferences.getBoolean("app_lock", true);
+        return securityPreferences != null && securityPreferences.getBoolean("app_lock", false);
     }
 
     void setAppLockEnabled(boolean enabled) {
         if (securityPreferences == null) return;
-        securityPreferences.edit().putBoolean("app_lock", enabled).apply();
+        securityPreferences.edit()
+                .putBoolean("app_lock", enabled)
+                .putBoolean("app_lock_user_selected", true)
+                .apply();
         runOnUiThread(() -> {
             if (enabled) {
                 appUnlocked = false;
@@ -370,6 +415,9 @@ public class MainActivity extends FragmentActivity {
                     .putBoolean("touch_compat_v14_0_1", true);
             if (!securityPreferences.getBoolean("privacy_user_selected", false)) {
                 editor.putBoolean("privacy_screen", false);
+            }
+            if (!securityPreferences.getBoolean("app_lock_user_selected", false)) {
+                editor.putBoolean("app_lock", false);
             }
             editor.apply();
         }
