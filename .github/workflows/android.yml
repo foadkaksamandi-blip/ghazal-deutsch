@@ -124,6 +124,33 @@ jobs:
           test "$BYTES" -gt 300000
           test "$BYTES" -lt 30000000
           sha256sum "$APK" | tee qa/apk-sha256.txt
+      - name: Dry-run real production APK/AAB path with ephemeral validation key
+        run: |
+          set -euo pipefail
+          KS="$RUNNER_TEMP/ghazal-ci-release.jks"
+          STORE_PASS="GhzCiValidation2026"
+          KEY_PASS="GhzCiValidation2026"
+          ALIAS="ghazal-ci-validation"
+          keytool -genkeypair -noprompt -keystore "$KS" -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias "$ALIAS" -keyalg RSA -keysize 4096 -validity 365 -dname "CN=GHAZAL CI Validation,OU=QA,O=FOAD,L=Tehran,C=IR"
+          CERT_SHA=$(keytool -exportcert -keystore "$KS" -storepass "$STORE_PASS" -alias "$ALIAS" | sha256sum | awk '{print $1}')
+          gradle :app:assembleRelease :app:bundleRelease --stacktrace \
+            -PGHZ_STORE_FILE="$KS" \
+            -PGHZ_STORE_PASSWORD="$STORE_PASS" \
+            -PGHZ_KEY_ALIAS="$ALIAS" \
+            -PGHZ_KEY_PASSWORD="$KEY_PASS" \
+            -PGHZ_EXPECTED_CERT_SHA256="$CERT_SHA"
+          APK="app/build/outputs/apk/release/app-release.apk"
+          AAB="app/build/outputs/bundle/release/app-release.aab"
+          test -f "$APK" && test -f "$AAB"
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee qa/ci-release-signature.txt
+          ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' qa/ci-release-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          test "$ACTUAL" = "$CERT_SHA"
+          jarsigner -verify -strict "$AAB" >/tmp/ghazal-aab-verify.txt
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
+          ! $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"
+          ! $ANDROID_HOME/build-tools/35.0.0/aapt dump permissions "$APK" | grep -q "android.permission.INTERNET"
+          sha256sum "$APK" "$AAB" > qa/ci-production-path-sha256.txt
+          rm -f "$KS"
       - name: Name Stage 8 candidate APK
         run: cp app/build/outputs/apk/hardenedQa/app-hardenedQa.apk GHAZAL-v14-stage8-final-qa.apk
       - name: Upload Stage 8 final-candidate evidence and APK
@@ -136,6 +163,8 @@ jobs:
             qa/stage8-final-gate.json
             qa/full-product-audit.json
             qa/apk-sha256.txt
+            qa/ci-release-signature.txt
+            qa/ci-production-path-sha256.txt
             app/build/reports/lint-results-hardenedQa.html
           if-no-files-found: error
           retention-days: 90
