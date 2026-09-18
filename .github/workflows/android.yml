@@ -34,18 +34,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Validate educational universe
+      - name: Validate educational content depth
         run: npm test
       - name: Check JavaScript syntax
         run: npm run check
       - name: Build installable QA APK
         run: gradle :app:assembleDebug --stacktrace
       - name: Name APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v7-educational-universe-qa.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GHAZAL-v8-stage2-content-depth-qa.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v7-educational-universe-qa
-          path: GHAZAL-v7-educational-universe-qa.apk
+          name: GHAZAL-v8-stage2-content-depth-qa
+          path: GHAZAL-v8-stage2-content-depth-qa.apk
           if-no-files-found: error
           retention-days: 90
