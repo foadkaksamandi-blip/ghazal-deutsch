@@ -6,7 +6,6 @@
         <item name="android:navigationBarColor">@color/brand_surface</item>
         <item name="android:statusBarColor">@color/brand_surface</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:colorAccent">@color/brand_primary</item>
         <item name="android:windowNoTitle">true</item>
     </style>
