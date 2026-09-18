@@ -167,12 +167,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p qa
-          APK="app/build/outputs/apk/release/app-release.apk"
-          AAB="app/build/outputs/bundle/release/app-release.aab"
-          APK_SHA=$(sha256sum "$APK" | awk '{print $1}')
-          AAB_SHA=$(sha256sum "$AAB" | awk '{print $1}')
           python - <<'PY'
-          import json,os,datetime
+          import json,os,datetime,hashlib,pathlib
+          apk=pathlib.Path("app/build/outputs/apk/release/app-release.apk")
+          aab=pathlib.Path("app/build/outputs/bundle/release/app-release.aab")
+          sha=lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
           payload={
             "format":"ghazal-production-release-v1",
             "product":"GHAZAL",
@@ -190,20 +189,12 @@ jobs:
             "artifacts":{
               "apk":"GHAZAL-v14-production.apk",
               "aab":"GHAZAL-v14-production.aab",
-              "apkSha256":os.environ["APK_SHA"],
-              "aabSha256":os.environ["AAB_SHA"]
+              "apkSha256":sha(apk),
+              "aabSha256":sha(aab)
             }
           }
-          open("qa/release-v14-manifest.json","w",encoding="utf-8").write(json.dumps(payload,ensure_ascii=False,indent=2))
+          pathlib.Path("qa/release-v14-manifest.json").write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
           PY
-        env:
-          DEVICE_QA_SHA256: ${{ inputs.stage7_device_qa_evidence_sha256 }}
-          CERT_SHA256: ${{ secrets.GHZ_CERT_SHA256 }}
-          RELEASE_NOTE: ${{ inputs.release_note }}
-          COMMIT_SHA: ${{ github.sha }}
-          RUN_ID: ${{ github.run_id }}
-          APK_SHA: ${{ env.APK_SHA }}
-          AAB_SHA: ${{ env.AAB_SHA }}
 
       - name: Rename production artifacts
         run: |
