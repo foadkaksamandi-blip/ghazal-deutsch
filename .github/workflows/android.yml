@@ -145,7 +145,8 @@ jobs:
           $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee qa/ci-release-signature.txt
           ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' qa/ci-release-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
           test "$ACTUAL" = "$CERT_SHA"
-          jarsigner -verify -strict "$AAB" >/tmp/ghazal-aab-verify.txt
+          jarsigner -verify -verbose -certs "$AAB" | tee /tmp/ghazal-aab-verify.txt
+          grep -q "jar verified." /tmp/ghazal-aab-verify.txt
           $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
           ! $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"
           ! $ANDROID_HOME/build-tools/35.0.0/aapt dump permissions "$APK" | grep -q "android.permission.INTERNET"
