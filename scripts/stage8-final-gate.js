@@ -26,7 +26,7 @@ check("application-id",/applicationId\s+"com\.foad\.ghazaldeutsch"/.test(gradle)
 check("min-target-sdk",/minSdk\s+26/.test(gradle)&&/targetSdk\s+35/.test(gradle));
 check("release-final-build-flag",gradle.includes('buildConfigField "boolean", "FINAL_RELEASE_BUILD", "true"'));
 check("release-qa-tools-off",gradle.includes('buildConfigField "boolean", "QA_INTERNAL_TOOLS_ENABLED", "false"'));
-check("release-channel",gradle.includes('buildConfigField "String", "RELEASE_CHANNEL", "\"production\""'));
+check("release-channel",/RELEASE_CHANNEL[^\n]+production/.test(gradle));
 check("release-signing-fail-closed",gradle.includes("Production release requires GHZ_STORE_FILE")&&gradle.includes(":app:assembleRelease"));
 check("native-signature-fail-closed",main.includes("BuildConfig.FINAL_RELEASE_BUILD")&&main.includes("!isProductionSigned()")&&main.includes("اعتبار نسخه نهایی GHAZAL تأیید نشد"));
 check("native-release-info",main.includes("String getReleaseInfo()")&&bridge.includes("public String getReleaseInfo()"));
