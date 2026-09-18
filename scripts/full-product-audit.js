@@ -86,7 +86,7 @@ function load(){
 
   const report={
     format:"ghazal-full-product-audit-v1",
-    version:"14.0.1",
+    version:"14.0.2",
     generatedAt:new Date().toISOString(),
     pass:checks.filter(x=>x.critical&&!x.pass).length===0,
     checks,
