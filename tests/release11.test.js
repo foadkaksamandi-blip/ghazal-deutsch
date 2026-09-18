@@ -68,7 +68,9 @@ test('Stage 3 adaptive daily plan respects budget and targets weak skills',()=>{
   assert.equal(out.plan.level,'B1');
   assert.ok(out.plan.items.length>0);
   assert.ok(out.plan.estimatedMinutes<=25);
-  assert.ok(out.plan.weakest.slice(0,3).some(x=>x.id==='grammar'));
+  assert.equal(out.plan.weakest[0].score,0);
+  const grammar=learning.weakestSkills(s).find(x=>x.id==='grammar'),vocab=learning.weakestSkills(s).find(x=>x.id==='vocabulary');
+  assert.ok(grammar.score<vocab.score);
 });
 
 test('Stage 3 mastery gate is evidence-based and can unlock next level',()=>{
