@@ -293,7 +293,7 @@
           "سه پیشنهاد و دو مصالحه بنویس.","یک برنامه آخرهفته را با شریک فرضی هماهنگ کن."],
         ["B1","B1 Lesen Strategie","راهبرد خواندن B1","Skimming و Scanning را جدا استفاده کنی.",
           ["die Hauptaussage|نکته اصلی","das Schlüsselwort|کلیدواژه","überfliegen|مرور سریع","gezielt suchen|هدفمند جستجو کردن"],
-          ["Zuerst überfliege ich …","Dann suche ich gezielt nach …"],
+          ["Zuerst überfliege ich …","Dann suche ich gezielt nach …","Am Ende überprüfe ich die Antworten im Text."],
           "برای یک متن فرضی 5 کلیدواژه تعیین کن.","راهبردت را در 45 ثانیه توضیح بده."],
 
         ["B2","B2 Argumentation","استدلال B2","دو جنبه را بسنجی و موضع نهایی بدهی.",
