@@ -100,6 +100,19 @@ jobs:
         run: npm run check
       - name: Android lint
         run: gradle :app:lintHardenedQa --stacktrace
+      - name: Require zero Android lint warnings and errors
+        run: |
+          python - <<'PY'
+          import pathlib,re,sys
+          p=pathlib.Path("app/build/reports/lint-results-hardenedQa.html")
+          text=p.read_text("utf-8",errors="ignore")
+          m=re.search(r"Lint Report: ([^<]+)",text)
+          title=m.group(1).strip() if m else ""
+          print("lint summary:",title or "unknown")
+          bad=re.search(r"\b([1-9]\d*)\s+warnings?\b",title,re.I) or re.search(r"\b([1-9]\d*)\s+errors?\b",title,re.I)
+          if bad:
+              sys.exit("Android lint is not clean: "+title)
+          PY
       - name: Build hardened non-debuggable QA APK
         run: gradle :app:assembleHardenedQa --stacktrace
       - name: Verify hardened APK signature alignment permissions and payload
