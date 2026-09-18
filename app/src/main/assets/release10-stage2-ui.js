@@ -1,6 +1,6 @@
 (function(){
   "use strict";
-  const E=window.GhazalExerciseEngine,A=window.GhazalAdvancedContent,C=window.GhazalContentSystem,H=window.GhazalHumanAudio,view=document.getElementById("view"),modal=document.getElementById("modal"),box=document.getElementById("modal-content");
+  const E=window.GhazalExerciseEngine,A=window.GhazalAdvancedContent,C=window.GhazalContentSystem,H=window.GhazalHumanAudio,O=window.GhazalOfflineCoach,view=document.getElementById("view"),modal=document.getElementById("modal"),box=document.getElementById("modal-content");
   if(!E||!A||!C||!view||!modal||!box)return;
   const OS_KEY="ghazal_deutsch_os_v1",R10_KEY="ghazal_stage2_r10_v1",LEVELS=["A1","A2","B1","B2","C1","C2"];
   let level="A1",type="",current=null,audio=null,pack="idioms",packLevel="A1",speechMode="",previousSpeech=window.onSpeechResult;
@@ -25,6 +25,8 @@
       '<button class="r10-card" data-r10="human-audio"><strong>🎙 Human Native Pack</strong><small>'+(H&&H.clips?H.clips.length:0)+' کلیپ واقعی با مجوز و Attribution.</small></button>'+
       '<button class="r10-card" data-r10="pron"><strong>🗣 Pronunciation</strong><small>۲۴ الگوی تلفظ، Stress، Rhythm و Intonation.</small></button>'+
       '<button class="r10-card" data-r10="search"><strong>🔎 Global Search</strong><small>جستجو در درس، لغت، Grammar، Scenario و Exam.</small></button>'+
+      '<button class="r10-card" data-r10="writing-coach"><strong>✍️ Writing Coach</strong><small>تحلیل آفلاین ساختار، پیوستگی، Register و خطاهای پرتکرار.</small></button>'+
+      '<button class="r10-card" data-r10="mock-center"><strong>🏆 Mock Center</strong><small>Mock تمرینی چندمهارتی + شاخص داخلی TestDaF readiness.</small></button>'+
       '<button class="r10-card" data-r10="qa"><strong>✅ Content QA</strong><small>'+(q.pass?"تمام معیارهای خودکار Stage 2 پاس شده‌اند.":"مواردی برای اصلاح باقی مانده.")+'</small></button>'+
       '</div>');
   }
@@ -84,6 +86,28 @@
   }
   function pronItem(id){const x=A.pronunciation.find(y=>y.id===id);if(!x)return;open(head(x.level,x.feature,x.tip)+'<div class="r10-box" dir="ltr">'+h(x.examples)+'</div><div class="button-row" style="margin-top:8px"><button class="secondary-button" data-r10="speak-text" data-text="'+encodeURIComponent(x.examples)+'">🔊 مدل</button><button class="primary-button" data-r10="pron-speak">🎙 تمرین</button></div>');}
 
+  function writingCoach(){
+    open(head("Offline Coach","Writing Diagnostics","تحلیل واقعی آفلاین مبتنی بر قواعد؛ جایگزین تصحیح مدرس یا AI آنلاین نیست.")+
+      '<div class="r10-toolbar"><select id="r10-write-level">'+LEVELS.map(l=>'<option '+(l===level?"selected":"")+'>'+l+'</option>').join("")+'</select></div>'+
+      '<input id="r10-write-prompt" class="r10-input" placeholder="موضوع/نوع متن، مثلاً formelle E-Mail">'+
+      '<textarea id="r10-write-text" class="r10-textarea" style="margin-top:8px" placeholder="Deutsch schreiben…"></textarea>'+
+      '<button class="primary-button" style="margin-top:8px" data-r10="analyze-writing">تحلیل Writing</button><div id="r10-write-result"></div>');
+  }
+  function analyzeWriting(){
+    if(!O)return;const lv=document.getElementById("r10-write-level")?.value||level,prompt=document.getElementById("r10-write-prompt")?.value||"",txt=document.getElementById("r10-write-text")?.value||"",r=O.analyze(txt,lv,prompt),el=document.getElementById("r10-write-result");log("writing",r.total,"offline-coach");
+    if(el)el.innerHTML='<div class="r10-kpis" style="margin-top:8px"><div class="r10-kpi"><b>'+r.total+'%</b><span>کل</span></div><div class="r10-kpi"><b>'+r.wordCount+'</b><span>واژه</span></div><div class="r10-kpi"><b>'+r.connectorHits+'</b><span>Connector</span></div></div><div class="r10-box" style="margin-top:8px"><b>Register: '+h(r.register)+'</b>'+r.suggestions.map(x=>'• '+h(x)).join('<br>')+'</div><div class="r10-box" style="margin-top:8px"><small>'+h(r.limitations)+'</small></div>';
+  }
+  function mockCenter(){
+    if(!O)return;let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}const rd=O.testdafReadiness(os.skills||{});
+    open(head("Mock Center","آزمون تمرینی چندمهارتی","تمرین شبیه‌سازی داخلی است؛ آزمون یا نمره رسمی مؤسسات نیست.")+
+      '<div class="r10-toolbar"><select id="r10-mock-exam"><option>Goethe</option><option>telc</option><option>TestDaF</option><option>ÖSD</option></select><select id="r10-mock-level">'+LEVELS.map(l=>'<option '+(l===level?"selected":"")+'>'+l+'</option>').join("")+'</select><button data-r10="build-mock">ساخت Mock</button></div>'+
+      '<div class="r10-box"><b>TestDaF Practice Readiness</b>'+h(rd.band)+' · میانگین '+rd.avg+'% · حداقل مهارت '+rd.min+'%<br><small>'+h(rd.note)+'</small></div><div id="r10-mock-result"></div>');
+  }
+  function buildMock(){
+    if(!O)return;const exam=document.getElementById("r10-mock-exam")?.value||"Goethe",lv=document.getElementById("r10-mock-level")?.value||level,m=O.buildMock(exam,lv),el=document.getElementById("r10-mock-result");
+    if(el)el.innerHTML='<div class="r10-box" style="margin-top:8px"><b>'+h(m.exam)+' · '+h(m.level)+' · '+m.totalMinutes+' دقیقه</b>'+m.sections.map((s,i)=>'<div style="margin-top:8px"><span class="r10-chip">'+h(s.skill)+'</span> '+(s.item?h(s.item.task||s.item.prompt||"تمرین داخلی"):"تمرین داخلی این مهارت")+' · '+s.minutes+' دقیقه</div>').join("")+'<br><small>'+h(m.note)+'</small></div>';
+  }
+
   function search(){
     open(head("Global Search","جستجوی کل مدرسه","درس، Dictionary، Grammar، Redemittel، Reading، Listening، Scenario و Exam.")+'<input id="r10-search" class="r10-search" placeholder="Deutsch / فارسی …"><div id="r10-search-results" class="r10-list"></div>');
   }
@@ -121,7 +145,12 @@
     else if(a==="dict-check"&&audio){const score=E.compare(document.getElementById("r10-dict")?.value||"",audio.text);log("dictation",score,audio.id);document.getElementById("r10-audio-result").innerHTML='<div class="r10-box" style="margin-top:8px"><b>'+score+'%</b><span dir="ltr">'+h(audio.text)+'</span></div>';}
     else if(a==="shadow"&&audio){speechMode="shadow";native("startSpeechRecognition","Shadowing auf Deutsch");}
     else if(a==="pron")pronunciation(); else if(a==="pron-level"){level=t.dataset.level;pronunciation();} else if(a==="pron-item")pronItem(t.dataset.id); else if(a==="pron-speak"){speechMode="pron";native("startSpeechRecognition","Aussprache üben");}
-    else if(a==="search")search(); else if(a==="qa")qa();
+    else if(a==="search")search();
+    else if(a==="writing-coach")writingCoach();
+    else if(a==="analyze-writing")analyzeWriting();
+    else if(a==="mock-center")mockCenter();
+    else if(a==="build-mock")buildMock();
+    else if(a==="qa")qa();
   });
   document.addEventListener("change",e=>{if(e.target.id==="r10-level"||e.target.id==="r10-type"){level=document.getElementById("r10-level")?.value||"A1";type=document.getElementById("r10-type")?.value||"";practice();}});
   document.addEventListener("input",e=>{if(e.target.id==="r10-search"){const el=document.getElementById("r10-search-results");if(el)el.innerHTML=renderSearch(e.target.value);}});
