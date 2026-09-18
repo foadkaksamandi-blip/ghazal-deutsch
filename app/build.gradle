@@ -17,8 +17,8 @@ android {
         applicationId "com.foad.ghazaldeutsch"
         minSdk 26
         targetSdk 35
-        versionCode 14
-        versionName "14.0.0"
+        versionCode 15
+        versionName "14.0.1"
         buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
         buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
         buildConfigField "boolean", "FINAL_RELEASE_BUILD", "false"
