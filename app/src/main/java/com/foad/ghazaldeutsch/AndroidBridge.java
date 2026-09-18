@@ -198,9 +198,21 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public String getDeviceReport() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "{}" : activity.getDeviceReport();
+    }
+
+    @JavascriptInterface
+    public void exportQaEvidence(String json) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.exportQaEvidence(json);
+    }
+
+    @JavascriptInterface
     public String getAppVersion() {
         MainActivity activity = activityReference.get();
-        return activity == null ? "12.0.0" : activity.appVersion();
+        return activity == null ? "13.0.0" : activity.appVersion();
     }
 
     @JavascriptInterface

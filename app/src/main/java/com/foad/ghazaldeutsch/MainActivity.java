@@ -3,6 +3,7 @@ package com.foad.ghazaldeutsch;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
+import android.app.ActivityManager;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -78,6 +79,7 @@ public class MainActivity extends FragmentActivity {
     private static final int REQUEST_SECURE_EXPORT = 4105;
     private static final int REQUEST_SECURE_IMPORT = 4106;
     private static final int REQUEST_PDF_EXPORT = 4107;
+    private static final int REQUEST_QA_EXPORT = 4108;
     private static final int MAX_BACKUP_BYTES = 8_000_000;
     private static final long RELOCK_AFTER_MS = 5_000L;
     private static final String SECURITY_PREFS = "ghazal_security";
@@ -93,6 +95,7 @@ public class MainActivity extends FragmentActivity {
     private String pendingSecurePassphrase;
     private String pendingSecureImportPassphrase;
     private String pendingReportJson;
+    private String pendingQaEvidenceJson;
     private SharedPreferences securityPreferences;
     private boolean appUnlocked = false;
     private boolean authInProgress = false;
@@ -731,6 +734,55 @@ public class MainActivity extends FragmentActivity {
         return out.toString();
     }
 
+    String getDeviceReport() {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("version", appVersion());
+            out.put("manufacturer", Build.MANUFACTURER);
+            out.put("brand", Build.BRAND);
+            out.put("model", Build.MODEL);
+            out.put("device", Build.DEVICE);
+            out.put("androidRelease", Build.VERSION.RELEASE);
+            out.put("sdk", Build.VERSION.SDK_INT);
+            out.put("abis", new JSONArray(Build.SUPPORTED_ABIS));
+            out.put("processors", Runtime.getRuntime().availableProcessors());
+            out.put("javaMaxMemoryMb", Runtime.getRuntime().maxMemory() / (1024L * 1024L));
+            ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            if (manager != null) {
+                ActivityManager.MemoryInfo info = new ActivityManager.MemoryInfo();
+                manager.getMemoryInfo(info);
+                out.put("totalMemoryMb", info.totalMem / (1024L * 1024L));
+                out.put("availableMemoryMb", info.availMem / (1024L * 1024L));
+                out.put("lowMemory", info.lowMemory);
+            }
+            out.put("speechRecognition", isSpeechRecognitionAvailable());
+            out.put("ttsReady", isTextToSpeechReady());
+            out.put("notificationPermission", hasNotificationPermission());
+            out.put("appLock", isAppLockEnabled());
+            out.put("privacyScreen", isPrivacyScreenEnabled());
+            out.put("rootRisk", isDeviceCompromised());
+            out.put("hookRisk", isRuntimeHookRisk());
+            out.put("debuggable", isDebuggableBuild());
+            out.put("assetIntegrity", verifyBundledAssets());
+            out.put("cryptoSelfTest", runCryptoSelfTest());
+            out.put("signingSha256", signingCertificateSha256());
+            out.put("productionSigned", isProductionSigned());
+            out.put("installer", installerSource());
+            out.put("cleartextDisabled", true);
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
+    void exportQaEvidence(String json) {
+        if (json == null || json.length() > MAX_BACKUP_BYTES) { showToast("گزارش QA معتبر نیست"); return; }
+        pendingQaEvidenceJson = json;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "GHAZAL-stage7-QA-evidence.json");
+        runOnUiThread(() -> startActivityForResult(intent, REQUEST_QA_EXPORT));
+    }
+
     void exportProgressPdf(String json) {
         if (json == null || json.length() > MAX_BACKUP_BYTES) { showToast("گزارش معتبر نیست"); return; }
         pendingReportJson = json;
@@ -773,7 +825,7 @@ public class MainActivity extends FragmentActivity {
 
     String appVersion() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (PackageManager.NameNotFoundException exception) { return "12.0.0"; }
+        catch (PackageManager.NameNotFoundException exception) { return "13.0.0"; }
     }
 
     @Override
@@ -827,11 +879,19 @@ public class MainActivity extends FragmentActivity {
                 writeReportPdf(uri, pendingReportJson);
                 pendingReportJson = null;
                 showToast("گزارش PDF ذخیره شد");
+            } else if (requestCode == REQUEST_QA_EXPORT && pendingQaEvidenceJson != null) {
+                try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                    if (output == null) throw new IOException("Cannot open QA output");
+                    output.write(pendingQaEvidenceJson.getBytes(StandardCharsets.UTF_8));
+                }
+                pendingQaEvidenceJson = null;
+                showToast("گزارش QA ذخیره شد");
             }
         } catch (Exception exception) {
             pendingSecureBackupJson = null;
             pendingSecurePassphrase = null;
             pendingSecureImportPassphrase = null;
+            pendingQaEvidenceJson = null;
             showToast("عملیات فایل انجام نشد؛ رمز یا فایل را بررسی کن");
         }
     }

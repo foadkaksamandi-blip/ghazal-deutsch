@@ -75,9 +75,10 @@ jobs:
                       files[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
           (sec/"asset-integrity.json").write_text(json.dumps({"version":1,"algorithm":"SHA-256","files":files},sort_keys=True,separators=(",",":")),encoding="utf-8")
           PY
-      - name: Run tests and source checks
+      - name: Run Stage 7 release-gate tests and source checks
         run: |
           npm test
+          npm run qa:heavy
           npm run check
       - name: Build signed production APK and AAB
         env:
@@ -102,14 +103,14 @@ jobs:
           if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then exit 1; fi
       - name: Rename production artifacts
         run: |
-          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v12-production.apk
-          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v12-production.aab
+          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v13-production.apk
+          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v13-production.aab
       - name: Upload signed production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v12-production
+          name: GHAZAL-v13-production
           path: |
-            GHAZAL-v12-production.apk
-            GHAZAL-v12-production.aab
+            GHAZAL-v13-production.apk
+            GHAZAL-v13-production.aab
           if-no-files-found: error
           retention-days: 30
