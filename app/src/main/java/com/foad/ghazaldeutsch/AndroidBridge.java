@@ -72,6 +72,24 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public void recordUiInteraction(String descriptor) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.recordUiInteraction(descriptor);
+    }
+
+    @JavascriptInterface
+    public void publishInteractionMap(String json) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.publishInteractionMap(json);
+    }
+
+    @JavascriptInterface
+    public String getInteractionQaState() {
+        MainActivity activity = activityReference.get();
+        return activity == null ? "{}" : activity.getInteractionQaState();
+    }
+
+    @JavascriptInterface
     public boolean isAppLockEnabled() {
         MainActivity activity = activityReference.get();
         return activity != null && activity.isAppLockEnabled();
