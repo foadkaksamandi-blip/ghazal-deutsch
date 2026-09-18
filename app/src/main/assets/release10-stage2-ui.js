@@ -12,11 +12,15 @@
   function native(method,...args){try{if(window.GhazalAndroid&&typeof window.GhazalAndroid[method]==="function")return window.GhazalAndroid[method](...args);}catch(_){}}
   function state(){try{return JSON.parse(localStorage.getItem(R10_KEY)||"{}")||{};}catch(_){return{};}}
   function saveState(s){localStorage.setItem(R10_KEY,JSON.stringify(s));}
+  function setResume(type,id,step){const s=state();s.resume=C.makeResume({type,id,step:step||0,level});saveState(s);}
+  function getResume(){return state().resume||null;}
   function log(kind,score,id){const s=state();s.attempts=s.attempts||[];s.attempts.push({kind,score,id,at:new Date().toISOString()});if(s.attempts.length>500)s.attempts=s.attempts.slice(-500);saveState(s);let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}os.skills=os.skills||{};const k=os.skills[kind]||{attempts:0,total:0,best:0};k.attempts=(k.attempts||0)+1;k.total=(k.total||0)+score;k.best=Math.max(k.best||0,score);k.lastAt=new Date().toISOString();os.skills[kind]=k;localStorage.setItem(OS_KEY,JSON.stringify(os));}
 
   function hub(){
     const q=C.audit(),s=E.summary();
+    const resume=getResume();
     open(head("Stage 2","تکمیل محتوای آموزشی","تمرین انبوه، زبان طبیعی، Listening پیشرفته، تلفظ، جستجوی کامل و QA.")+
+      (resume&&resume.type?'<button class="r10-card" style="width:100%;margin-bottom:9px" data-r10="resume"><strong>↩ ادامه آخرین فعالیت</strong><small>'+h(resume.type+" · "+resume.id)+'</small></button>':'')+
       '<div class="r10-kpis"><div class="r10-kpi"><b>'+s.total+'</b><span>تمرین اجرایی</span></div><div class="r10-kpi"><b>'+q.counts.educationalUnits+'</b><span>واحد آموزشی</span></div><div class="r10-kpi"><b>'+q.counts.index+'</b><span>رکورد جستجو</span></div></div>'+
       '<div class="r10-grid" style="margin-top:10px">'+
       '<button class="r10-card" data-r10="practice"><strong>⚡ Smart Practice</strong><small>تمرین واقعی از کل محتوای A1 تا C2.</small></button>'+
@@ -33,7 +37,7 @@
 
   function practice(){
     const types=Object.keys(E.summary().byType).sort(),items=E.list({level,type});
-    current=items.length?items[Math.floor(Date.now()/1000)%items.length]:null;
+    current=items.length?items[Math.floor(Date.now()/1000)%items.length]:null;if(current)setResume("exercise",current.id,0);
     open(head("Smart Practice","بانک تمرین یکپارچه","سطح و نوع را انتخاب کن؛ پاسخ‌ها از محتوای واقعی برنامه ساخته می‌شوند.")+
       '<div class="r10-toolbar"><select id="r10-level">'+LEVELS.map(x=>'<option '+(x===level?"selected":"")+'>'+x+'</option>').join("")+'</select><select id="r10-type"><option value="">همه نوع‌ها</option>'+types.map(x=>'<option value="'+h(x)+'" '+(x===type?"selected":"")+'>'+h(x)+'</option>').join("")+'</select><button data-r10="practice">سؤال بعد</button></div>'+
       (current?renderExercise(current):'<div class="r10-box">تمرینی برای این فیلتر وجود ندارد.</div>'));
@@ -55,7 +59,7 @@
       '<div class="r10-toolbar">'+LEVELS.map(l=>'<button class="'+(l===packLevel?"on":"")+'" data-r10="pack-level" data-level="'+l+'">'+l+'</button>').join("")+'</div>'+
       '<div class="r10-list">'+items.map(x=>'<button class="r10-item" data-r10="pack-item" data-id="'+x.id+'"><strong dir="ltr">'+h(x.de)+'</strong><small>'+h(x.fa)+' · '+h(x.register)+'</small></button>').join("")+'</div>');
   }
-  function packItem(id){const all=Object.values(A.packs).flatMap(p=>p.items||[]),x=all.find(y=>y.id===id);if(!x)return;open(head(x.level,x.de,x.fa)+'<div class="r10-box" dir="ltr"><b>Beispiel</b>'+h(x.example)+'</div><button class="secondary-button" style="margin-top:8px" data-r10="speak-text" data-text="'+encodeURIComponent(x.example)+'">🔊 شنیدن</button><textarea class="r10-textarea" style="margin-top:8px" placeholder="یک جمله شخصی با این عبارت بنویس…"></textarea>');}
+  function packItem(id){const all=Object.values(A.packs).flatMap(p=>p.items||[]),x=all.find(y=>y.id===id);if(!x)return;setResume("pack",id,0);open(head(x.level,x.de,x.fa)+'<div class="r10-box" dir="ltr"><b>Beispiel</b>'+h(x.example)+'</div><button class="secondary-button" style="margin-top:8px" data-r10="speak-text" data-text="'+encodeURIComponent(x.example)+'">🔊 شنیدن</button><textarea class="r10-textarea" style="margin-top:8px" placeholder="یک جمله شخصی با این عبارت بنویس…"></textarea>');}
 
   function audioLab(){
     const items=A.audio.filter(x=>x.level===level);
@@ -63,7 +67,7 @@
       '<div class="r10-toolbar">'+LEVELS.map(l=>'<button class="'+(l===level?"on":"")+'" data-r10="audio-level" data-level="'+l+'">'+l+'</button>').join("")+'</div>'+
       '<div class="r10-list">'+items.map(x=>'<button class="r10-item" data-r10="audio-item" data-id="'+x.id+'"><strong>'+h(x.voice==="female"?"Voice B":"Voice A")+' · '+h(x.level)+'</strong><small>'+h(x.text)+'</small></button>').join("")+'</div>');
   }
-  function audioItem(id){audio=A.audio.find(x=>x.id===id);if(!audio)return;open(head(audio.level,"Micro Listening","گوش‌دادن → قطعه‌بندی → Dictation → Shadowing")+
+  function audioItem(id){audio=A.audio.find(x=>x.id===id);if(!audio)return;setResume("audio",id,0);open(head(audio.level,"Micro Listening","گوش‌دادن → قطعه‌بندی → Dictation → Shadowing")+
     '<div class="r10-box"><b>Diagnostics</b>'+audio.diagnostics.map(x=>'<span class="r10-chip">'+h(x)+'</span>').join("")+'</div>'+
     '<div class="button-row" style="margin-top:8px"><button class="secondary-button" data-r10="audio-play" data-rate="0.68">🐢 آهسته</button><button class="secondary-button" data-r10="audio-play" data-rate="0.9">🔊 عادی</button></div>'+
     '<div class="section-title"><h2>Segmentation</h2></div><div class="r10-box" dir="ltr">'+audio.segments.map(x=>h(x)).join(" | ")+'</div>'+
@@ -84,10 +88,10 @@
       '<div class="r10-toolbar">'+LEVELS.map(l=>'<button class="'+(l===level?"on":"")+'" data-r10="pron-level" data-level="'+l+'">'+l+'</button>').join("")+'</div>'+
       '<div class="r10-list">'+items.map(x=>'<button class="r10-item" data-r10="pron-item" data-id="'+x.id+'"><strong>'+h(x.feature)+'</strong><small>'+h(x.examples)+'</small></button>').join("")+'</div>');
   }
-  function pronItem(id){const x=A.pronunciation.find(y=>y.id===id);if(!x)return;open(head(x.level,x.feature,x.tip)+'<div class="r10-box" dir="ltr">'+h(x.examples)+'</div><div class="button-row" style="margin-top:8px"><button class="secondary-button" data-r10="speak-text" data-text="'+encodeURIComponent(x.examples)+'">🔊 مدل</button><button class="primary-button" data-r10="pron-speak">🎙 تمرین</button></div>');}
+  function pronItem(id){const x=A.pronunciation.find(y=>y.id===id);if(!x)return;setResume("pron",id,0);open(head(x.level,x.feature,x.tip)+'<div class="r10-box" dir="ltr">'+h(x.examples)+'</div><div class="button-row" style="margin-top:8px"><button class="secondary-button" data-r10="speak-text" data-text="'+encodeURIComponent(x.examples)+'">🔊 مدل</button><button class="primary-button" data-r10="pron-speak">🎙 تمرین</button></div>');}
 
   function writingCoach(){
-    open(head("Offline Coach","Writing Diagnostics","تحلیل واقعی آفلاین مبتنی بر قواعد؛ جایگزین تصحیح مدرس یا AI آنلاین نیست.")+
+    setResume("writing-coach","offline",0);open(head("Offline Coach","Writing Diagnostics","تحلیل واقعی آفلاین مبتنی بر قواعد؛ جایگزین تصحیح مدرس یا AI آنلاین نیست.")+
       '<div class="r10-toolbar"><select id="r10-write-level">'+LEVELS.map(l=>'<option '+(l===level?"selected":"")+'>'+l+'</option>').join("")+'</select></div>'+
       '<input id="r10-write-prompt" class="r10-input" placeholder="موضوع/نوع متن، مثلاً formelle E-Mail">'+
       '<textarea id="r10-write-text" class="r10-textarea" style="margin-top:8px" placeholder="Deutsch schreiben…"></textarea>'+
@@ -98,7 +102,7 @@
     if(el)el.innerHTML='<div class="r10-kpis" style="margin-top:8px"><div class="r10-kpi"><b>'+r.total+'%</b><span>کل</span></div><div class="r10-kpi"><b>'+r.wordCount+'</b><span>واژه</span></div><div class="r10-kpi"><b>'+r.connectorHits+'</b><span>Connector</span></div></div><div class="r10-box" style="margin-top:8px"><b>Register: '+h(r.register)+'</b>'+r.suggestions.map(x=>'• '+h(x)).join('<br>')+'</div><div class="r10-box" style="margin-top:8px"><small>'+h(r.limitations)+'</small></div>';
   }
   function mockCenter(){
-    if(!O)return;let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}const rd=O.testdafReadiness(os.skills||{});
+    if(!O)return;setResume("mock-center","practice",0);let os={};try{os=JSON.parse(localStorage.getItem(OS_KEY)||"{}")||{};}catch(_){}const rd=O.testdafReadiness(os.skills||{});
     open(head("Mock Center","آزمون تمرینی چندمهارتی","تمرین شبیه‌سازی داخلی است؛ آزمون یا نمره رسمی مؤسسات نیست.")+
       '<div class="r10-toolbar"><select id="r10-mock-exam"><option>Goethe</option><option>telc</option><option>TestDaF</option><option>ÖSD</option></select><select id="r10-mock-level">'+LEVELS.map(l=>'<option '+(l===level?"selected":"")+'>'+l+'</option>').join("")+'</select><button data-r10="build-mock">ساخت Mock</button></div>'+
       '<div class="r10-box"><b>TestDaF Practice Readiness</b>'+h(rd.band)+' · میانگین '+rd.avg+'% · حداقل مهارت '+rd.min+'%<br><small>'+h(rd.note)+'</small></div><div id="r10-mock-result"></div>');
@@ -114,11 +118,11 @@
   function renderSearch(q){const r=C.search(q,{});return r.slice(0,50).map(x=>'<div class="r10-item"><strong>'+h(x.title)+'</strong><small>'+h(x.level+" · "+x.type+" · "+x.text.slice(0,100))+'</small></div>').join("")||'<div class="r10-box">نتیجه‌ای نیست.</div>';}
 
   function qa(){
-    const q=C.audit(),c=q.counts,report=C.weeklyReport((()=>{try{return JSON.parse(localStorage.getItem(OS_KEY)||"{}").skills||{};}catch(_){return{};}})());
+    const q=C.audit(),c=q.counts,skills=(()=>{try{return JSON.parse(localStorage.getItem(OS_KEY)||"{}").skills||{};}catch(_){return{};}})(),report=C.weeklyReport(skills),monthly=C.monthlyReport(skills);
     open(head(q.pass?"QA PASS":"QA CHECK","Stage 2 Content QA","آزمون خودکار پوشش محتوا؛ تست واقعی گوشی در مرحله QA نهایی محصول جدا انجام می‌شود.")+
       '<div class="r10-kpis"><div class="r10-kpi"><b>'+c.educationalUnits+'</b><span>واحد آموزشی</span></div><div class="r10-kpi"><b>'+c.exercises+'</b><span>تمرین</span></div><div class="r10-kpi"><b>'+c.dictionary+'</b><span>واژه ایندکس‌شده</span></div><div class="r10-kpi"><b>'+c.grammar+'</b><span>Grammar</span></div><div class="r10-kpi"><b>'+c.contrasts+'</b><span>Contrast</span></div><div class="r10-kpi"><b>'+c.advancedPackItems+'</b><span>Natural German</span></div></div>'+
       '<div class="r10-box" style="margin-top:9px"><b>نتیجه Audit</b>'+(q.pass?"✅ تمام Thresholdهای خودکار Stage 2 پاس شده.":"⚠ "+h(q.issues.join(", ")))+'</div>'+
-      '<div class="r10-box" style="margin-top:9px"><b>Evidence Report</b>تعداد تلاش‌های ثبت‌شده: '+report.totalAttempts+'<br>این گزارش برای برنامه تطبیقی مرحله بعد استفاده می‌شود.</div>');
+      '<div class="r10-box" style="margin-top:9px"><b>Evidence Report</b>تعداد تلاش‌های ثبت‌شده: '+report.totalAttempts+'<br>Weakest: '+h(report.weakest.map(x=>x.id+" "+x.avg+"%").join(" · ")||"هنوز داده کافی نیست")+'<br>پیشنهاد: '+h(report.recommendations.map(x=>x.action).slice(0,2).join(" / ")||"تمرین بیشتری ثبت کن")+'<br>Monthly evidence window: '+monthly.periodDays+' روز.</div>');
   }
 
   window.onSpeechResult=function(text){
@@ -130,7 +134,7 @@
 
   document.addEventListener("click",e=>{
     const t=e.target.closest("[data-r10]");if(!t)return;const a=t.dataset.r10;
-    if(a==="close")close(); else if(a==="hub")hub(); else if(a==="practice")practice();
+    if(a==="close")close(); else if(a==="hub")hub(); else if(a==="resume"){const r=getResume();if(!r)return;if(r.type==="exercise"){current=E.exercises.find(x=>x.id===r.id)||null;current?open(head("Resume",current.level,current.type)+renderExercise(current)):practice();}else if(r.type==="pack")packItem(r.id);else if(r.type==="audio")audioItem(r.id);else if(r.type==="pron")pronItem(r.id);else if(r.type==="writing-coach")writingCoach();else if(r.type==="mock-center")mockCenter();else hub();} else if(a==="practice")practice();
     else if(a==="option")checkAnswer(decodeURIComponent(t.dataset.value||""));
     else if(a==="check")checkAnswer(document.getElementById("r10-answer")?.value||"");
     else if(a==="free-done"){log(current?.type||"production",75,current?.id||"");document.getElementById("r10-result").innerHTML='<div class="r10-box" style="margin-top:8px">✅ تلاش ثبت شد. پاسخ آزاد در مرحله AI آنلاین آینده می‌تواند عمیق‌تر تصحیح شود.</div>';}
