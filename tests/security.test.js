@@ -26,7 +26,10 @@ test('WebView hardening stays enabled', () => {
   assert.match(main, /setSafeBrowsingEnabled\(true\)/);
   assert.match(main, /setAcceptCookie\(false\)/);
   assert.match(main, /setAcceptThirdPartyCookies\(webView, false\)/);
-  assert.match(main, /setFilterTouchesWhenObscured\(true\)/);
+  assert.match(main, /setFilterTouchesWhenObscured\(false\)/);
+  assert.match(main, /setClickable\(true\)/);
+  assert.match(main, /setFocusableInTouchMode\(true\)/);
+  assert.match(main, /getBoolean\("privacy_screen", false\)/);
 });
 
 test('encrypted local and portable backup primitives are present', () => {
