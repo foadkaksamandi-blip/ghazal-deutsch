@@ -1,4 +1,4 @@
-name: Production Android Release
+name: GHAZAL 14 Production Release
 
 on:
   workflow_dispatch:
@@ -7,6 +7,15 @@ on:
         description: "Short release note"
         required: false
         type: string
+      stage7_device_qa_confirmed:
+        description: "I confirm the real-device Stage 7 critical matrix has passed"
+        required: true
+        default: false
+        type: boolean
+      stage7_device_qa_evidence_sha256:
+        description: "SHA-256 of exported Stage 7 QA evidence JSON"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -14,28 +23,44 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     environment: production
 
     steps:
+      - name: Stage 8 external release gate
+        env:
+          DEVICE_QA_CONFIRMED: ${{ inputs.stage7_device_qa_confirmed }}
+          DEVICE_QA_SHA256: ${{ inputs.stage7_device_qa_evidence_sha256 }}
+          REPO_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          test "$REPO_PRIVATE" = "true" || { echo "Repository must be private for Stage 8 production release"; exit 1; }
+          test "$DEVICE_QA_CONFIRMED" = "true" || { echo "Real-device Stage 7 QA is not confirmed"; exit 1; }
+          printf '%s' "$DEVICE_QA_SHA256" | grep -Eiq '^[0-9a-f]{64}$' || { echo "Stage 7 QA evidence SHA-256 is invalid"; exit 1; }
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
+
       - name: Install Android platform
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Require production signing secrets
+
+      - name: Require permanent production signing secrets
         env:
           KEYSTORE_B64: ${{ secrets.GHZ_KEYSTORE_B64 }}
           STORE_PASSWORD: ${{ secrets.GHZ_STORE_PASSWORD }}
@@ -49,6 +74,7 @@ jobs:
           done
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/ghazal-release.jks"
           chmod 600 "$RUNNER_TEMP/ghazal-release.jks"
+
       - name: Fetch and verify licensed human-native audio
         run: |
           set -euo pipefail
@@ -59,8 +85,15 @@ jobs:
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/d/d3/De-darstellen.ogg" -o app/src/main/assets/human_audio/De-darstellen.ogg
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/6/69/De-eintragen.ogg" -o app/src/main/assets/human_audio/De-eintragen.ogg
           curl -L --fail --retry 3 "https://upload.wikimedia.org/wikipedia/commons/8/83/De-at-deutsch.ogg" -o app/src/main/assets/human_audio/De-at-deutsch.ogg
-          printf '%s\n'             '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg'             'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg'             'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg'             '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg'             'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg'             '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
+          printf '%s\n' \
+            '52239a77cb6ade337d273c077336cc98ba38dfad  app/src/main/assets/human_audio/De-guten_Tag2.ogg' \
+            'e9fb264843ff4d2d1e4e90a7bb9524ffd1a02021  app/src/main/assets/human_audio/De-Wie_geht_es_dir..ogg' \
+            'fde4f9c0f3d9938a7a05b825b9329c3edaee7366  app/src/main/assets/human_audio/De-Schritt_fuer_Schritt.ogg' \
+            '6d8f96905effb7683f87edcdf658ea48196cd752  app/src/main/assets/human_audio/De-darstellen.ogg' \
+            'b1bf2c650e0e87f9064176cbba773f8c1fcbd1f6  app/src/main/assets/human_audio/De-eintragen.ogg' \
+            '8d601b6f82ab724df230fecee65a374cf1bb75c5  app/src/main/assets/human_audio/De-at-deutsch.ogg' > /tmp/human_audio.sha1
           sha1sum -c /tmp/human_audio.sha1
+
       - name: Generate bundled asset integrity manifest
         run: |
           python - <<'PY'
@@ -75,11 +108,17 @@ jobs:
                       files[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
           (sec/"asset-integrity.json").write_text(json.dumps({"version":1,"algorithm":"SHA-256","files":files},sort_keys=True,separators=(",",":")),encoding="utf-8")
           PY
-      - name: Run Stage 7 release-gate tests and source checks
+
+      - name: Full regression heavy QA and Stage 8 final gate
         run: |
           npm test
           npm run qa:heavy
+          npm run qa:final
           npm run check
+
+      - name: Android release lint
+        run: gradle :app:lintRelease --stacktrace
+
       - name: Build signed production APK and AAB
         env:
           STORE_PASSWORD: ${{ secrets.GHZ_STORE_PASSWORD }}
@@ -87,8 +126,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.GHZ_KEY_PASSWORD }}
           CERT_SHA256: ${{ secrets.GHZ_CERT_SHA256 }}
         run: |
-          gradle :app:assembleRelease :app:bundleRelease --stacktrace             -PGHZ_STORE_FILE="$RUNNER_TEMP/ghazal-release.jks"             -PGHZ_STORE_PASSWORD="$STORE_PASSWORD"             -PGHZ_KEY_ALIAS="$KEY_ALIAS"             -PGHZ_KEY_PASSWORD="$KEY_PASSWORD"             -PGHZ_EXPECTED_CERT_SHA256="$CERT_SHA256"
-      - name: Verify production signature and release hardening
+          gradle :app:assembleRelease :app:bundleRelease --stacktrace \
+            -PGHZ_STORE_FILE="$RUNNER_TEMP/ghazal-release.jks" \
+            -PGHZ_STORE_PASSWORD="$STORE_PASSWORD" \
+            -PGHZ_KEY_ALIAS="$KEY_ALIAS" \
+            -PGHZ_KEY_PASSWORD="$KEY_PASSWORD" \
+            -PGHZ_EXPECTED_CERT_SHA256="$CERT_SHA256"
+
+      - name: Verify production signature hardening permissions and payload
         env:
           CERT_SHA256: ${{ secrets.GHZ_CERT_SHA256 }}
         run: |
@@ -96,21 +141,88 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           AAB="app/build/outputs/bundle/release/app-release.aab"
           test -f "$APK" && test -f "$AAB"
-          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
-          ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee qa/apk-signature.txt
+          ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' qa/apk-signature.txt | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')
           EXPECTED=$(printf '%s' "$CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
           test -n "$ACTUAL" && test "$ACTUAL" = "$EXPECTED"
-          if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then exit 1; fi
+          jarsigner -verify -strict -certs "$AAB" >/tmp/aab-verify.txt
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
+          if $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"; then
+            echo "Production APK is debuggable"; exit 1
+          fi
+          if $ANDROID_HOME/build-tools/35.0.0/aapt dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
+            echo "Offline production APK unexpectedly requests INTERNET"; exit 1
+          fi
+          unzip -l "$APK" | grep -q "assets/release14-final-core.js"
+          unzip -l "$APK" | grep -q "assets/release14-final-ui.js"
+          unzip -l "$APK" | grep -q "assets/security/asset-integrity.json"
+
+      - name: Create release manifest and checksums
+        env:
+          DEVICE_QA_SHA256: ${{ inputs.stage7_device_qa_evidence_sha256 }}
+          CERT_SHA256: ${{ secrets.GHZ_CERT_SHA256 }}
+          RELEASE_NOTE: ${{ inputs.release_note }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p qa
+          APK="app/build/outputs/apk/release/app-release.apk"
+          AAB="app/build/outputs/bundle/release/app-release.aab"
+          APK_SHA=$(sha256sum "$APK" | awk '{print $1}')
+          AAB_SHA=$(sha256sum "$AAB" | awk '{print $1}')
+          python - <<'PY'
+          import json,os,datetime
+          payload={
+            "format":"ghazal-production-release-v1",
+            "product":"GHAZAL",
+            "packageId":"com.foad.ghazaldeutsch",
+            "version":"14.0.0",
+            "versionCode":14,
+            "commit":os.environ["COMMIT_SHA"],
+            "workflowRunId":os.environ["RUN_ID"],
+            "createdAt":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "stage7DeviceQaEvidenceSha256":os.environ["DEVICE_QA_SHA256"].lower(),
+            "signingCertificateSha256":os.environ["CERT_SHA256"].replace(":","").lower(),
+            "releaseNote":os.environ.get("RELEASE_NOTE",""),
+            "offlineCore":True,
+            "internetPermission":False,
+            "artifacts":{
+              "apk":"GHAZAL-v14-production.apk",
+              "aab":"GHAZAL-v14-production.aab",
+              "apkSha256":os.environ["APK_SHA"],
+              "aabSha256":os.environ["AAB_SHA"]
+            }
+          }
+          open("qa/release-v14-manifest.json","w",encoding="utf-8").write(json.dumps(payload,ensure_ascii=False,indent=2))
+          PY
+        env:
+          DEVICE_QA_SHA256: ${{ inputs.stage7_device_qa_evidence_sha256 }}
+          CERT_SHA256: ${{ secrets.GHZ_CERT_SHA256 }}
+          RELEASE_NOTE: ${{ inputs.release_note }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          APK_SHA: ${{ env.APK_SHA }}
+          AAB_SHA: ${{ env.AAB_SHA }}
+
       - name: Rename production artifacts
         run: |
-          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v13-production.apk
-          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v13-production.aab
-      - name: Upload signed production artifacts
+          cp app/build/outputs/apk/release/app-release.apk GHAZAL-v14-production.apk
+          cp app/build/outputs/bundle/release/app-release.aab GHAZAL-v14-production.aab
+          sha256sum GHAZAL-v14-production.apk GHAZAL-v14-production.aab qa/release-v14-manifest.json > qa/release-v14-checksums.sha256
+
+      - name: Upload signed Stage 8 production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GHAZAL-v13-production
+          name: GHAZAL-v14-production
           path: |
-            GHAZAL-v13-production.apk
-            GHAZAL-v13-production.aab
+            GHAZAL-v14-production.apk
+            GHAZAL-v14-production.aab
+            qa/release-v14-manifest.json
+            qa/release-v14-checksums.sha256
+            qa/apk-signature.txt
+            qa/stage7-heavy-qa-report.json
+            qa/stage8-final-gate.json
+            app/build/reports/lint-results-release.html
           if-no-files-found: error
           retention-days: 30
