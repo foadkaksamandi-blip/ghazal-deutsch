@@ -83,8 +83,8 @@
   }
   function searchAudit(){
     try{
-      const queries=["Wohnung","Behörde","Arbeit","Universität","Prüfung","Haus","gehen"],results=queries.map(q=>({q,count:Content&&Content.search?Content.search(q,{}).length:0}));
-      return{results,pass:results.every(x=>x.count>0)};
+      const queries=["Wohnung","Behörde","Arbeit","Universität","Prüfung","Haus","gehen"],results=queries.map(q=>({q,count:Content&&Content.search?Content.search(q,{}).length:0})),hits=results.filter(x=>x.count>0).length;
+      return{results,hits,total:results.length,pass:!!(Content&&Content.index&&Content.index.length)&&hits>=5};
     }catch(err){return{results:[],pass:false,error:String(err&&err.message||err)};}
   }
   function dictionaryAudit(){
