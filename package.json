@@ -1,10 +1,10 @@
 {
   "name": "ghazal-deutsch",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "private": true,
   "description": "Offline-first German acquisition system for migration, real life, university, career, classrooms and exams",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check app/src/main/assets/core.js && node --check app/src/main/assets/course-data.js && node --check app/src/main/assets/release4-content.js && node --check app/src/main/assets/release5-content.js && node --check app/src/main/assets/release7-content.js && node --check app/src/main/assets/release7-library.js && node --check app/src/main/assets/platform-core.js && node --check app/src/main/assets/app.js && node --check app/src/main/assets/os-extension.js && node --check app/src/main/assets/release3-extension.js && node --check app/src/main/assets/release4-extension.js && node --check app/src/main/assets/release4-navigation.js && node --check app/src/main/assets/release5-extension.js && node --check app/src/main/assets/release6-platform.js && node --check app/src/main/assets/release7-library-ui.js"
+    "check": "node --check app/src/main/assets/core.js && node --check app/src/main/assets/course-data.js && node --check app/src/main/assets/release4-content.js && node --check app/src/main/assets/release5-content.js && node --check app/src/main/assets/release7-content.js && node --check app/src/main/assets/release7-library.js && node --check app/src/main/assets/release8-dictionary.js && node --check app/src/main/assets/release8-deep-library.js && node --check app/src/main/assets/platform-core.js && node --check app/src/main/assets/app.js && node --check app/src/main/assets/os-extension.js && node --check app/src/main/assets/release3-extension.js && node --check app/src/main/assets/release4-extension.js && node --check app/src/main/assets/release4-navigation.js && node --check app/src/main/assets/release5-extension.js && node --check app/src/main/assets/release6-platform.js && node --check app/src/main/assets/release7-library-ui.js && node --check app/src/main/assets/release8-content-depth-ui.js"
   }
 }
