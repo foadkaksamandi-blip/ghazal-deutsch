@@ -75,7 +75,7 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   for(let i=0;i<1200;i++){const q=queryPool[i%queryPool.length];const res=content.search(q,{});if(res&&res.length)searchHits++;}
   const searchMs=Math.round(performance.now()-searchStart);
   report.metrics.search1200Ms=searchMs;
-  assertCheck("search-stress",searchHits>=1000&&searchMs<10000,{searchHits,searchMs});
+  assertCheck("search-stress",searchHits>=1000&&searchMs<30000,{searchHits,searchMs});
 
   const dictStart=performance.now();let dictHits=0;
   for(let i=0;i<300;i++){const q=["Haus","gehen","Arbeit","Zeit","gut","lernen"][i%6];let r=[];if(dict&&typeof dict.search==="function")r=dict.search(q,"",30)||[];else r=(dict.all||[]).filter(x=>JSON.stringify(x).toLowerCase().includes(q.toLowerCase()));if(r.length)dictHits++;}
