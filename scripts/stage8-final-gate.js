@@ -20,8 +20,8 @@ const qaUi=read("app/src/main/assets/release13-stage7-ui.js");
 const finalCore=read("app/src/main/assets/release14-final-core.js");
 const finalUi=read("app/src/main/assets/release14-final-ui.js");
 
-check("package-version",pkg.version==="14.0.0",pkg.version);
-check("android-version",/versionCode\s+14/.test(gradle)&&/versionName\s+"14\.0\.0"/.test(gradle));
+check("package-version",pkg.version==="14.0.1",pkg.version);
+check("android-version",/versionCode\s+15/.test(gradle)&&/versionName\s+"14\.0\.0"/.test(gradle));
 check("application-id",/applicationId\s+"com\.foad\.ghazaldeutsch"/.test(gradle));
 check("min-target-sdk",/minSdk\s+26/.test(gradle)&&/targetSdk\s+35/.test(gradle));
 check("release-final-build-flag",gradle.includes('buildConfigField "boolean", "FINAL_RELEASE_BUILD", "true"'));
@@ -30,13 +30,13 @@ check("release-channel",/RELEASE_CHANNEL[^\n]+production/.test(gradle));
 check("release-signing-fail-closed",gradle.includes("Production release requires GHZ_STORE_FILE")&&gradle.includes(":app:assembleRelease"));
 check("native-signature-fail-closed",main.includes("BuildConfig.FINAL_RELEASE_BUILD")&&main.includes("!isProductionSigned()")&&main.includes("اعتبار نسخه نهایی GHAZAL تأیید نشد"));
 check("native-release-info",main.includes("String getReleaseInfo()")&&bridge.includes("public String getReleaseInfo()"));
-check("native-version-fallback",main.includes('return "14.0.0"')&&bridge.includes('return activity == null ? "14.0.0"'));
+check("native-version-fallback",main.includes('return "14.0.1"')&&bridge.includes('return activity == null ? "14.0.1"'));
 check("offline-no-internet",!manifest.includes("android.permission.INTERNET"));
 check("cleartext-disabled",manifest.includes('android:usesCleartextTraffic="false"'));
 check("backup-disabled",manifest.includes('android:allowBackup="false"'));
 check("audio-capture-disabled",manifest.includes('android:allowAudioPlaybackCapture="false"'));
 check("final-assets-wired",["release14-final-core.js","release14-final-ui.js","release14-final.css"].every(x=>index.includes(x)));
-check("final-core-version",finalCore.includes('const VERSION="14.0.0"')&&finalCore.includes('const VERSION_CODE=14'));
+check("final-core-version",finalCore.includes('const VERSION="14.0.1"')&&finalCore.includes('const VERSION_CODE=15'));
 check("final-core-package",finalCore.includes('const PACKAGE_ID="com.foad.ghazaldeutsch"'));
 check("qa-hidden-in-production",qaUi.includes("qaToolsEnabled===false"));
 check("final-about-ui",finalUi.includes("درباره نسخه نهایی")&&finalUi.includes("Offline-first"));
@@ -62,6 +62,6 @@ for(const file of [gradle,main,bridge,finalCore,finalUi,releaseWorkflow]){
 check("no-embedded-private-secret",forbidden.length===0,forbidden.join(","));
 
 fs.mkdirSync(path.join(ROOT,"qa"),{recursive:true});
-const report={format:"ghazal-stage8-final-gate-v1",version:"14.0.0",generatedAt:new Date().toISOString(),pass:true,checks};
+const report={format:"ghazal-stage8-final-gate-v1",version:"14.0.1",generatedAt:new Date().toISOString(),pass:true,checks};
 fs.writeFileSync(path.join(ROOT,"qa/stage8-final-gate.json"),JSON.stringify(report,null,2));
-console.log(JSON.stringify({pass:true,checks:checks.length,version:"14.0.0"},null,2));
+console.log(JSON.stringify({pass:true,checks:checks.length,version:"14.0.1"},null,2));
