@@ -13,7 +13,7 @@
   if(root)root.GhazalQACore=api;
 })(typeof window!=="undefined"?window:null,function(Data,Exercises,Content,Dictionary,Learning,Classroom,Product,Security){
   "use strict";
-  const VERSION="14.0.1",SCHEMA=1;
+  const VERSION="14.0.2",SCHEMA=1;
   const LEVELS=["A1","A2","B1","B2","C1","C2"];
   const CRITICAL_CATEGORIES=new Set(["startup","security","offline","persistence","education","classroom"]);
   const MANUAL_CASES=[
