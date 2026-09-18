@@ -13,6 +13,7 @@
   const backupFile = document.getElementById("backup-file");
 
   let state = loadState();
+  migrateInteractionState();
   let currentView = "home";
   let selectedLevel = state.profile.level || "A1";
   let activeLessonId = null;
@@ -83,6 +84,23 @@
 
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function migrateInteractionState() {
+    state.settings = state.settings || {};
+    if (state.settings.interactionMigrationV141) return;
+    const progress = state.progress || {};
+    const assessment = state.assessment || {};
+    const completed = Array.isArray(progress.completedLessons) ? progress.completedLessons.length : 0;
+    const hasRealProgress = completed > 0
+      || Number(progress.xp || 0) > 0
+      || Number(progress.streak || 0) > 0
+      || assessment.placementScore != null;
+    if (state.onboardingDone && !hasRealProgress) {
+      state.onboardingDone = false;
+    }
+    state.settings.interactionMigrationV141 = true;
+    saveState();
   }
 
   function h(value) {
@@ -818,6 +836,7 @@
     return false;
   };
 
+  window.GhazalBaseReady = true;
   render();
   scheduleReminderIfEnabled();
   if (!state.onboardingDone) setTimeout(showWelcome, 120);
