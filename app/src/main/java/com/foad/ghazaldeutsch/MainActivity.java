@@ -106,6 +106,11 @@ public class MainActivity extends FragmentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (BuildConfig.FINAL_RELEASE_BUILD && (!BuildConfig.PRODUCTION_SIGNING_ENABLED || !isProductionSigned())) {
+            Toast.makeText(this, "اعتبار نسخه نهایی GHAZAL تأیید نشد", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         securityPreferences = getSharedPreferences(SECURITY_PREFS, MODE_PRIVATE);
         configureSystemBars();
         applyPrivacyScreen();
