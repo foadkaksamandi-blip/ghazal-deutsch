@@ -24,6 +24,12 @@ public final class AndroidBridge {
     }
 
     @JavascriptInterface
+    public void setTextZoom(int percent) {
+        MainActivity activity = activityReference.get();
+        if (activity != null) activity.setTextZoom(percent);
+    }
+
+    @JavascriptInterface
     public void setSpeechRate(double rate) {
         MainActivity activity = activityReference.get();
         if (activity != null) activity.setSpeechRate((float) rate);
