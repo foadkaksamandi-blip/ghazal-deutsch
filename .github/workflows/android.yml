@@ -96,6 +96,8 @@ jobs:
         run: npm run qa:final
       - name: Full product requirement audit
         run: npm run qa:product
+      - name: Whole-app UI interaction integrity audit
+        run: npm run qa:ui
       - name: JavaScript syntax validation
         run: npm run check
       - name: Android lint
@@ -176,6 +178,7 @@ jobs:
             qa/stage7-heavy-qa-report.json
             qa/stage8-final-gate.json
             qa/full-product-audit.json
+            qa/ui-integrity-audit.json
             qa/apk-sha256.txt
             qa/ci-release-signature.txt
             qa/ci-production-path-sha256.txt
