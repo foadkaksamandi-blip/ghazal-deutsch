@@ -105,7 +105,7 @@ public class MainActivity extends FragmentActivity {
     private float rescueDownX;
     private float rescueDownY;
     private long rescueDownAt;
-    private boolean rescueMoved;
+    private boolean rescueMoved;\n    private volatile boolean pageReadyForTesting = false;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -159,6 +159,11 @@ public class MainActivity extends FragmentActivity {
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                pageReadyForTesting = true;
+            }
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 return uri == null || !"file".equalsIgnoreCase(uri.getScheme());
@@ -184,7 +189,7 @@ public class MainActivity extends FragmentActivity {
         });
 
         setContentView(webView);
-        webView.loadUrl("file:///android_asset/index.html");
+        pageReadyForTesting = false;\n        webView.loadUrl("file:///android_asset/index.html");
         webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
         appUnlocked = !isAppLockEnabled();
     }
@@ -230,6 +235,16 @@ public class MainActivity extends FragmentActivity {
 
     WebView webViewForTesting() {
         return webView;
+    }
+
+    boolean isPageReadyForTesting() {
+        return pageReadyForTesting;
+    }
+
+    void resetWebAppForTesting() {
+        if (webView == null) return;
+        pageReadyForTesting = false;
+        webView.loadUrl("javascript:(function(){try{localStorage.clear();sessionStorage.clear();}catch(e){} location.reload();})()");
     }
 
     @Override
