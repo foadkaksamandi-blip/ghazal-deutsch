@@ -24,6 +24,8 @@
   let cachedRows=[];
   let uidCounter=0;
   let nativeSuppressedUntil=0;
+  let lastPhysicalTarget=null;
+  let lastPhysicalTargetAt=0;
 
   function now(){return Date.now();}
   function interactive(node){
@@ -139,6 +141,13 @@
     }
     return null;
   }
+  function rememberPhysicalTarget(node){
+    const target=interactive(node);
+    if(!target)return null;
+    lastPhysicalTarget=target;
+    lastPhysicalTargetAt=now();
+    return target;
+  }
   function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
@@ -146,13 +155,19 @@
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
     }
-    const target=candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
+    const recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
+    if(recent&&!recent.isConnected){
+      native("recordUiInteraction","native-skip:detached-physical-target");
+      return false;
+    }
+    const target=interactive(recent)||candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
     }
     setTimeout(()=>{
       if(now()<nativeSuppressedUntil)return;
+      if(recent&&!recent.isConnected)return;
       clickElement(target,"native");
     },70);
     return true;
@@ -219,14 +234,25 @@
     });
   },true);
 
+  document.addEventListener("touchstart",event=>{
+    rememberPhysicalTarget(event.target);
+  },true);
+
+  document.addEventListener("pointerdown",event=>{
+    if(event.pointerType&&event.pointerType!=="touch"&&event.pointerType!=="pen")return;
+    rememberPhysicalTarget(event.target);
+  },true);
+
   document.addEventListener("touchend",event=>{
     const touch=event.changedTouches&&event.changedTouches[0];
     if(!touch)return;
+    rememberPhysicalTarget(event.target);
     deferredTouch(event.target,"touchend");
   },true);
 
   document.addEventListener("pointerup",event=>{
     if(event.pointerType&&event.pointerType!=="touch"&&event.pointerType!=="pen")return;
+    rememberPhysicalTarget(event.target);
     deferredTouch(event.target,"pointerup");
   },true);
 
@@ -242,7 +268,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.2.0",
+    VERSION:"2.3.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
@@ -255,6 +281,8 @@
       lastRescueAt,
       lastNativeX,
       lastNativeY,
+      lastPhysicalTarget:lastPhysicalTarget?descriptor(lastPhysicalTarget):null,
+      lastPhysicalTargetConnected:!!(lastPhysicalTarget&&lastPhysicalTarget.isConnected),
       cachedControls:cachedRows.length,
       dpr:Number(window.devicePixelRatio)||1,
       href:location.href
