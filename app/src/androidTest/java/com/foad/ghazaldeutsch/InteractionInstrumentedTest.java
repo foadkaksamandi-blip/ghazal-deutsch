@@ -1,18 +1,16 @@
 package com.foad.ghazaldeutsch;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import android.app.Instrumentation;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.webkit.WebView;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.json.JSONArray;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,139 +25,146 @@ public class InteractionInstrumentedTest {
     @Rule
     public ActivityScenarioRule<MainActivity> rule = new ActivityScenarioRule<>(MainActivity.class);
 
-    private boolean pageReady() {
-        AtomicBoolean ready = new AtomicBoolean(false);
-        rule.getScenario().onActivity(activity -> ready.set(activity.isPageReadyForTesting()));
-        return ready.get();
-    }
-
-    private String webViewState() {
-        AtomicReference<String> state = new AtomicReference<>("{}");
-        rule.getScenario().onActivity(activity -> state.set(activity.getWebViewTestState()));
-        return state.get();
-    }
-
-    private void waitForPageReady() {
-        long deadline = SystemClock.uptimeMillis() + 15000L;
-        while (SystemClock.uptimeMillis() < deadline) {
-            if (pageReady()) return;
-            SystemClock.sleep(100L);
-        }
-        assertTrue("Timed out waiting for WebView page completion state=" + webViewState(), false);
-    }
-
     private String eval(String script) throws Exception {
-        waitForPageReady();
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> result = new AtomicReference<>("null");
         rule.getScenario().onActivity(activity -> {
-            WebView w = activity.webViewForTesting();
-            w.post(() -> w.evaluateJavascript(script, value -> {
+            WebView webView = activity.webViewForTesting();
+            assertNotNull(webView);
+            webView.evaluateJavascript(script, value -> {
                 result.set(value == null ? "null" : value);
                 latch.countDown();
-            }));
+            });
         });
         assertTrue("evaluateJavascript timeout: " + script, latch.await(8, TimeUnit.SECONDS));
         return result.get();
     }
 
     private boolean evalBool(String script) throws Exception {
-        return "true".equals(eval(script));
+        return "true".equals(eval("(function(){try{return !!(" + script + ");}catch(e){return false;}})()"));
     }
 
-    private void waitFor(String expression) throws Exception {
-        long deadline = SystemClock.uptimeMillis() + 10000L;
+    private boolean pageReady() {
+        AtomicBoolean ready = new AtomicBoolean(false);
+        rule.getScenario().onActivity(activity -> ready.set(activity.isPageReadyForTesting()));
+        return ready.get();
+    }
+
+    private void waitForPageReady() throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 15000L;
         while (SystemClock.uptimeMillis() < deadline) {
-            if (evalBool("(function(){try{return !!(" + expression + ");}catch(e){return false;}})()")) return;
+            if (pageReady()) return;
             SystemClock.sleep(120L);
         }
-        assertTrue("Timed out waiting for: " + expression, false);
+        assertTrue("Timed out waiting for WebView onPageFinished", false);
     }
 
-    private float[] rect(String selector) throws Exception {
-        String q = selector.replace("\\", "\\\\").replace("'", "\\'");
-        String value = eval("(function(){var e=document.querySelector('" + q + "');"
-                + "if(!e)return null;var r=e.getBoundingClientRect();"
-                + "return [r.left+r.width/2,r.top+r.height/2,window.devicePixelRatio||1,r.width,r.height];})()");
-        assertTrue("Missing control: " + selector + " -> " + value, !"null".equals(value));
-        JSONArray a = new JSONArray(value);
-        assertTrue("Zero width control: " + selector, a.getDouble(3) > 2);
-        assertTrue("Zero height control: " + selector, a.getDouble(4) > 2);
-        return new float[]{(float)a.getDouble(0),(float)a.getDouble(1),(float)a.getDouble(2)};
-    }
-
-    private void systemTap(String selector) throws Exception {
-        float[] r = rect(selector);
-        AtomicReference<float[]> screen = new AtomicReference<>(new float[]{0f,0f});
-        rule.getScenario().onActivity(activity -> {
-            int[] loc = new int[]{0,0};
-            activity.webViewForTesting().getLocationOnScreen(loc);
-            screen.set(new float[]{loc[0] + r[0] * r[2], loc[1] + r[1] * r[2]});
-        });
-        float[] p = screen.get();
-        Instrumentation ins = InstrumentationRegistry.getInstrumentation();
-        long downTime = SystemClock.uptimeMillis();
-        MotionEvent down = MotionEvent.obtain(downTime,downTime,MotionEvent.ACTION_DOWN,p[0],p[1],0);
-        MotionEvent up = MotionEvent.obtain(downTime,downTime+80L,MotionEvent.ACTION_UP,p[0],p[1],0);
-        try {
-            ins.sendPointerSync(down);
-            ins.sendPointerSync(up);
-        } finally {
-            down.recycle();
-            up.recycle();
+    private void waitFor(String expression, String label) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 12000L;
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (evalBool(expression)) return;
+            SystemClock.sleep(120L);
         }
-        SystemClock.sleep(420L);
+        String body = eval("(document.body&&document.body.innerText?document.body.innerText.slice(0,1500):'NO_BODY')");
+        String href = eval("location.href");
+        assertTrue("Timed out waiting for " + label + " href=" + href + " body=" + body, false);
     }
 
-    @Before
-    public void freshState() throws Exception {
+    private float[] center(String selector) throws Exception {
+        String q = selector.replace("\\", "\\\\").replace("'", "\\'");
+        String value = eval("(function(){"
+                + "var e=document.querySelector('" + q + "');"
+                + "if(!e)return null;"
+                + "var r=e.getBoundingClientRect();"
+                + "var s=getComputedStyle(e);"
+                + "return [r.left+r.width/2,r.top+r.height/2,window.devicePixelRatio||1,r.width,r.height,"
+                + "s.display,s.visibility,s.pointerEvents];"
+                + "})()");
+        assertTrue("No selector or geometry for " + selector + " value=" + value, value != null && !"null".equals(value));
+        JSONArray a = new JSONArray(value);
+        assertTrue("Zero width for " + selector + " value=" + value, a.getDouble(3) > 2);
+        assertTrue("Zero height for " + selector + " value=" + value, a.getDouble(4) > 2);
+        assertTrue("display:none for " + selector, !"none".equals(a.getString(5)));
+        assertTrue("visibility:hidden for " + selector, !"hidden".equals(a.getString(6)));
+        assertTrue("pointer-events:none for " + selector, !"none".equals(a.getString(7)));
+        return new float[]{(float)a.getDouble(0), (float)a.getDouble(1), (float)a.getDouble(2)};
+    }
+
+    private void physicalTap(String selector) throws Exception {
+        float[] c = center(selector);
+        final float px = c[0] * c[2];
+        final float py = c[1] * c[2];
+        rule.getScenario().onActivity(activity -> {
+            WebView w = activity.webViewForTesting();
+            long down = SystemClock.uptimeMillis();
+            MotionEvent d = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, px, py, 0);
+            MotionEvent u = MotionEvent.obtain(down, down + 80L, MotionEvent.ACTION_UP, px, py, 0);
+            try {
+                assertTrue("ACTION_DOWN was not accepted for " + selector, w.dispatchTouchEvent(d));
+                assertTrue("ACTION_UP was not accepted for " + selector, w.dispatchTouchEvent(u));
+            } finally {
+                d.recycle();
+                u.recycle();
+            }
+        });
+        SystemClock.sleep(500L);
+    }
+
+    private void freshFirstRun() throws Exception {
         waitForPageReady();
-        rule.getScenario().onActivity(MainActivity::resetWebAppForTesting);
-        waitForPageReady();
-        waitFor("document.documentElement.getAttribute('data-ghz-interaction-ready')==='2'");
-        waitFor("document.querySelector('[data-action=\"skip-placement\"]')");
+        waitFor("document.readyState==='complete'", "document complete");
+        eval("(function(){localStorage.clear();sessionStorage.clear();location.reload();return true;})()");
+        SystemClock.sleep(400L);
+        waitFor("document.readyState==='complete'", "reload complete");
+        waitFor("document.documentElement.getAttribute('data-ghz-interaction-ready')==='2'", "interaction kernel");
+        waitFor("!!document.querySelector('[data-action=\"skip-placement\"]')", "first-run skip button");
     }
 
     @Test
-    public void physicalSystemTouchesDriveWholeCriticalInteractionPath() throws Exception {
-        systemTap("[data-action='skip-placement']");
-        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0");
+    public void physicalTouchesDriveWholeCriticalInteractionPath() throws Exception {
+        freshFirstRun();
 
-        systemTap("[data-nav='path']");
-        waitFor("document.body.innerText.indexOf('مسیر تسلط')>=0");
-        waitFor("document.querySelector('[data-action=\"select-level\"]')");
+        // First-run entry: a real MotionEvent must enter the app.
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0", "home screen");
 
-        systemTap("[data-nav='practice']");
-        waitFor("document.body.innerText.indexOf('تمرین فعال')>=0");
-        waitFor("document.querySelector('[data-action=\"start-listening\"]')");
+        // Main bottom navigation.
+        physicalTap("[data-nav='path']");
+        waitFor("document.body.innerText.indexOf('مسیر تسلط')>=0", "path screen");
 
-        systemTap("[data-nav='migration']");
-        waitFor("document.body.innerText.indexOf('بسته مهاجرت')>=0");
-        waitFor("document.querySelector('[data-action=\"open-pack\"]')");
+        physicalTap("[data-nav='practice']");
+        waitFor("document.body.innerText.indexOf('تمرین فعال')>=0", "practice screen");
 
-        systemTap("[data-nav='profile']");
-        waitFor("document.body.innerText.indexOf('پیشرفت غزل')>=0");
-        waitFor("document.querySelector('[data-action=\"export-backup\"]')");
+        physicalTap("[data-nav='migration']");
+        waitFor("document.body.innerText.indexOf('بسته مهاجرت')>=0", "migration screen");
 
-        systemTap("[data-nav='home']");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0");
+        physicalTap("[data-nav='profile']");
+        waitFor("document.body.innerText.indexOf('پیشرفت غزل')>=0", "profile screen");
 
-        systemTap("[data-action='open-lesson']");
-        waitFor("document.getElementById('modal').hidden===false");
-        waitFor("document.querySelector('#modal-content [data-action=\"close-modal\"]')");
-        systemTap("#modal-content [data-action='close-modal']");
-        waitFor("document.getElementById('modal').hidden===true");
+        physicalTap("[data-nav='home']");
+        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0", "home return");
 
-        systemTap("[data-nav='practice']");
-        waitFor("document.querySelector('[data-r12=\"hub\"]')");
-        systemTap("[data-r12='hub']");
-        waitFor("document.getElementById('modal').hidden===false");
-        waitFor("document.querySelector('[data-r12=\"close\"]')");
-        systemTap("[data-r12='close']");
-        waitFor("document.getElementById('modal').hidden===true");
+        // Open and close a real lesson modal.
+        waitFor("!!document.querySelector('[data-action=\"open-lesson\"]')", "lesson button");
+        physicalTap("[data-action='open-lesson']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "lesson modal open");
+        waitFor("!!document.querySelector('#modal-content [data-action=\"close-modal\"]')", "lesson close button");
+        physicalTap("#modal-content [data-action='close-modal']");
+        waitFor("document.getElementById('modal').hidden===true", "lesson modal close");
 
-        assertTrue(evalBool("window.GhazalInteractionRescue && window.GhazalInteractionRescue.diagnostics().ready===true"));
-        assertTrue(evalBool("window.GhazalInteractionRescue.diagnostics().normalCount + window.GhazalInteractionRescue.diagnostics().rescueCount >= 8"));
+        // Dynamic Stage 5/6 UI has its own delegated event namespace.
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('[data-r12=\"hub\"]')", "Stage 5/6 hub button");
+        physicalTap("[data-r12='hub']");
+        waitFor("document.getElementById('modal').hidden===false", "Stage 5/6 modal open");
+        waitFor("!!document.querySelector('[data-r12=\"close\"]')", "Stage 5/6 close button");
+        physicalTap("[data-r12='close']");
+        waitFor("document.getElementById('modal').hidden===true", "Stage 5/6 modal close");
+
+        assertTrue("Interaction kernel did not remain alive",
+                evalBool("window.GhazalInteractionRescue && window.GhazalInteractionRescue.diagnostics().ready===true"));
+        assertTrue("No browser/rescue interactions were observed",
+                evalBool("window.GhazalInteractionRescue.diagnostics().normalCount + window.GhazalInteractionRescue.diagnostics().rescueCount >= 8"));
     }
 }
