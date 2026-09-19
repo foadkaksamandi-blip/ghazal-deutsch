@@ -13,6 +13,7 @@
   const backupFile = document.getElementById("backup-file");
 
   let state = loadState();
+  migrateInteractionState();
   let currentView = "home";
   let selectedLevel = state.profile.level || "A1";
   let activeLessonId = null;
@@ -85,6 +86,23 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
+  function migrateInteractionState() {
+    state.settings = state.settings || {};
+    if (state.settings.interactionMigrationV141) return;
+    const progress = state.progress || {};
+    const assessment = state.assessment || {};
+    const completed = Array.isArray(progress.completedLessons) ? progress.completedLessons.length : 0;
+    const hasRealProgress = completed > 0
+      || Number(progress.xp || 0) > 0
+      || Number(progress.streak || 0) > 0
+      || assessment.placementScore != null;
+    if (state.onboardingDone && !hasRealProgress) {
+      state.onboardingDone = false;
+    }
+    state.settings.interactionMigrationV141 = true;
+    saveState();
+  }
+
   function h(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -123,11 +141,20 @@
     toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
   }
 
+  function emitUiChanged(reason) {
+    requestAnimationFrame(() => {
+      document.dispatchEvent(new CustomEvent("ghazal:ui-changed", {
+        detail: { reason: reason || "render", view: currentView, modalOpen: !modal.hidden }
+      }));
+    });
+  }
+
   function openModal(html, locked) {
     modalContent.innerHTML = html;
     modal.dataset.locked = locked ? "true" : "false";
     modal.hidden = false;
     modalContent.scrollTop = 0;
+    emitUiChanged("modal-open");
   }
 
   function closeModal(force) {
@@ -138,6 +165,7 @@
     modal.dataset.locked = "false";
     activeLessonId = null;
     lessonResult = null;
+    emitUiChanged("modal-close");
   }
 
   function navigate(name) {
@@ -156,6 +184,7 @@
     else if (currentView === "migration") renderMigration();
     else if (currentView === "profile") renderProfile();
     else renderHome();
+    emitUiChanged("view-render");
   }
 
   function ensureDailyState() {
@@ -588,6 +617,7 @@
     `;
     requestAnimationFrame(bindWelcomeButtons);
     setTimeout(bindWelcomeButtons, 120);
+    emitUiChanged("onboarding");
   }
 
   function startPlacement() {
@@ -818,6 +848,7 @@
     return false;
   };
 
+  window.GhazalBaseReady = true;
   render();
   scheduleReminderIfEnabled();
   if (!state.onboardingDone) setTimeout(showWelcome, 120);

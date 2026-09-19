@@ -134,5 +134,5 @@
     }
   });
 
-  const observer=new MutationObserver(inject);observer.observe(view,{childList:true,subtree:true});setTimeout(inject,250);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,250);
 })();

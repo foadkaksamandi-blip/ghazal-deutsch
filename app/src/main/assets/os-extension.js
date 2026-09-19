@@ -325,7 +325,6 @@
     }
   });
 
-  const observer = new MutationObserver(() => injectCurrentView());
-  if (view) observer.observe(view, { childList: true, subtree: true });
+  document.addEventListener("ghazal:ui-changed", injectCurrentView);
   setTimeout(injectCurrentView, 250);
 })();

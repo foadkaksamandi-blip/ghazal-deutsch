@@ -160,5 +160,5 @@
   document.addEventListener("input",e=>{if(e.target.id==="r10-search"){const el=document.getElementById("r10-search-results");if(el)el.innerHTML=renderSearch(e.target.value);}});
 
   function inject(){const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r10='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r10="hub"><span class="big-icon">🏁</span><strong>Stage 2 · Complete Candidate</strong><small>تمرین انبوه، زبان طبیعی، Audio، Pronunciation، Search و QA.</small></button>');}
-  const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,400);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,400);
 })();

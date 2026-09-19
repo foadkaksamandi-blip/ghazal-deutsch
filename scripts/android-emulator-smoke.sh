@@ -35,8 +35,13 @@ function fail_on_crash() {
 
 function assert_running() {
   local pid
-  pid="$(adb shell pidof "$PKG" | tr -d '\r')"
-  test -n "$pid" || { adb logcat -d > "$OUT/logcat-no-process.txt"; echo "GHAZAL process is not running"; exit 1; }
+  pid="$(adb shell pidof "$PKG" 2>/dev/null | tr -d '\r' || true)"
+  if [ -z "$pid" ]; then
+    adb logcat -d -v threadtime > "$OUT/logcat-no-process.txt" || true
+    echo "GHAZAL process is not running"
+    tail -n 200 "$OUT/logcat-no-process.txt" || true
+    exit 1
+  fi
   echo "$pid"
 }
 

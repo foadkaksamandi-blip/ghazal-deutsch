@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>GHAZAL Browser Smoke</title></head>
+<body>
+<pre id="result">GHZ_BROWSER_SMOKE_RUNNING</pre>
+<iframe id="app" src="/app/src/main/assets/index.html" style="width:420px;height:900px;border:0"></iframe>
+<script>
+(function(){
+  "use strict";
+  const result=document.getElementById("result");
+  const frame=document.getElementById("app");
+  const evidence={checks:[]};
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+  function pass(id,detail){evidence.checks.push({id,pass:true,detail:detail||{}});}
+  function must(v,msg,detail){if(!v)throw new Error(msg+(detail?" :: "+JSON.stringify(detail):""));}
+  async function waitFor(fn,timeout){
+    const end=Date.now()+(timeout||7000);let last;
+    while(Date.now()<end){try{last=fn();if(last)return last;}catch(e){last=String(e);}await sleep(80);}
+    throw new Error("waitFor timeout: "+String(last));
+  }
+  frame.addEventListener("load",async()=>{
+    try{
+      const w=frame.contentWindow,d=frame.contentDocument;
+      await waitFor(()=>w.GhazalBaseReady===true,8000);
+      const boot={buttons:d.querySelectorAll("button").length,onboarding:!!d.getElementById("ghz-welcome-root"),rescue:!!w.GhazalInteractionRescue};
+      must(boot.buttons>=8,"too few buttons",boot);
+      must(boot.onboarding,"onboarding missing",boot);
+      must(boot.rescue,"interaction rescue missing",boot);
+      pass("boot",boot);
+
+      d.getElementById("ghz-skip-placement").click();
+      await waitFor(()=>{try{return JSON.parse(w.localStorage.getItem("ghazal_deutsch_state_v1")||"{}").onboardingDone===true}catch(_){return false}},4000);
+      await sleep(450);
+      const modal=d.getElementById("modal");
+      if(modal&&!modal.hidden){
+        const close=[...d.querySelectorAll("[data-action='close-modal']")].find(x=>x.textContent.includes("فعلاً نه"))||d.querySelector("[data-action='close-modal']");
+        if(close)close.click();
+      }
+      await waitFor(()=>!!d.querySelector(".hero"),3000);
+      pass("onboarding-skip");
+
+      const navCases=[["path","مسیر تسلط"],["practice","تمرین"],["migration","مهاجرت"],["profile","پیشرفت"],["home","سلام"]];
+      for(const pair of navCases){
+        const nav=pair[0],needle=pair[1],b=d.querySelector("[data-nav='"+nav+"']");
+        must(b,"missing nav "+nav);b.click();await sleep(120);
+        const active=d.querySelector("[data-nav].active");
+        const text=d.getElementById("view").innerText||"";
+        must(active&&active.dataset.nav===nav,"nav not active "+nav,{active:active&&active.dataset.nav});
+        must(text.includes(needle),"nav content mismatch "+nav,{text:text.slice(0,240)});
+        pass("nav-"+nav);
+      }
+
+      d.querySelector("[data-nav='home']").click();await sleep(120);
+      const lesson=d.querySelector("[data-action='open-lesson']");
+      must(lesson,"lesson button missing");lesson.click();
+      await waitFor(()=>d.getElementById("modal").hidden===false,2500);
+      must((d.getElementById("modal-content").innerText||"").length>20,"lesson modal empty");
+      pass("open-lesson");
+
+      const close=d.querySelector("[data-action='close-modal']");if(close)close.click();await sleep(120);
+      const quiz=d.querySelector("[data-action='quick-quiz']");must(quiz,"quick quiz missing");quiz.click();
+      await waitFor(()=>d.getElementById("modal").hidden===false,2500);
+      const answers=d.querySelectorAll("[data-action='answer-quick']").length;
+      must(answers>=2,"quick quiz answers missing",{answers});pass("quick-quiz",{answers});
+
+      const diag=w.GhazalInteractionRescue.diagnostics();
+      must(diag&&diag.ready,"interaction diagnostics unavailable",diag);pass("interaction-rescue",diag);
+      let runtime=[];try{runtime=(JSON.parse(w.localStorage.getItem("ghazal_qa_v1")||"{}").runtimeErrors||[]).slice(-10);}catch(e){runtime=[{message:String(e)}];}
+      const severe=runtime.filter(x=>x&&x.message&&!/ResizeObserver loop/i.test(x.message));
+      must(severe.length===0,"runtime JS errors",severe);pass("runtime-errors");
+
+      evidence.pass=true;
+      result.textContent="GHZ_BROWSER_SMOKE_PASS "+JSON.stringify(evidence);
+    }catch(e){
+      evidence.pass=false;evidence.error=String(e&&e.stack||e);
+      result.textContent="GHZ_BROWSER_SMOKE_FAIL "+JSON.stringify(evidence);
+    }
+  });
+})();
+</script>
+</body>
+</html>

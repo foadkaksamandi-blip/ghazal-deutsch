@@ -92,5 +92,5 @@
 
   function inject(){const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r13='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r13="hub"><span class="big-icon">🧪</span><strong>Stage 7 · Heavy QA</strong><small>Automated QA + Device Matrix + Evidence.</small></button>');const settings=view.querySelector(".settings-card");if(settings&&!view.querySelector(".r13-qa-entry"))settings.insertAdjacentHTML("beforebegin",'<button class="card skill-card r13-qa-entry" style="width:100%;margin-bottom:10px" data-r13="hub"><span class="big-icon">✅</span><strong>QA Center</strong><small>کنترل نهایی قبل از Release.</small></button>');}
   window.GhazalQAStage7={runAutomated:runAuto,state:()=>state,manual:()=>Q.manualSummary(state),evidence:()=>Q.evidence(state,device())};
-  const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,550);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,550);
 })();

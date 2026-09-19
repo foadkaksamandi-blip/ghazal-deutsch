@@ -60,3 +60,17 @@ test('modal backdrop cannot intercept onboarding controls on Android WebView', (
     assert.ok(app.includes(token), token);
   }
 });
+
+
+test('interaction QA bridge and native tap backstop remain wired', () => {
+  const bridge = fs.readFileSync(path.join(root, 'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'), 'utf8');
+  const rescue = fs.readFileSync(path.join(root, 'app/src/main/assets/interaction-rescue.js'), 'utf8');
+  assert.match(main, /installNativeTouchRescue\(\)/);
+  assert.match(main, /recordUiInteraction\(String descriptor\)/);
+  assert.match(main, /publishInteractionMap\(String json\)/);
+  assert.match(bridge, /recordUiInteraction/);
+  assert.match(bridge, /publishInteractionMap/);
+  assert.match(rescue, /elementsFromPoint/);
+  assert.match(rescue, /recordUiInteraction/);
+  assert.match(rescue, /publishInteractionMap/);
+});

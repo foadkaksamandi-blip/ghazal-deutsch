@@ -26,12 +26,14 @@ import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.util.Base64;
 import android.view.View;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
@@ -101,6 +103,11 @@ public class MainActivity extends FragmentActivity {
     private boolean authInProgress = false;
     private boolean ttsReady = false;
     private long backgroundedAt = 0L;
+    private float rescueDownX;
+    private float rescueDownY;
+    private long rescueDownAt;
+    private boolean rescueMoved;
+    private volatile boolean pageReadyForTesting = false;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -149,9 +156,21 @@ public class MainActivity extends FragmentActivity {
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.requestFocus(View.FOCUS_DOWN);
+        installNativeTouchRescue();
         webView.addJavascriptInterface(new AndroidBridge(this), "GhazalAndroid");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageCommitVisible(WebView view, String url) {
+                super.onPageCommitVisible(view, url);
+                pageReadyForTesting = true;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                pageReadyForTesting = true;
+            }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -178,9 +197,82 @@ public class MainActivity extends FragmentActivity {
         });
 
         setContentView(webView);
+        pageReadyForTesting = false;
         webView.loadUrl("file:///android_asset/index.html");
         webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
         appUnlocked = !isAppLockEnabled();
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void installNativeTouchRescue() {
+        final float slop = 18f * getResources().getDisplayMetrics().density;
+        webView.setOnTouchListener((view, event) -> {
+            if (event == null) return false;
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    rescueDownX = event.getX();
+                    rescueDownY = event.getY();
+                    rescueDownAt = System.currentTimeMillis();
+                    rescueMoved = false;
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    if (Math.abs(event.getX() - rescueDownX) > slop || Math.abs(event.getY() - rescueDownY) > slop) {
+                        rescueMoved = true;
+                    }
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    rescueMoved = true;
+                    break;
+                case MotionEvent.ACTION_UP:
+                    long elapsed = System.currentTimeMillis() - rescueDownAt;
+                    if (!rescueMoved && elapsed >= 0L && elapsed <= 900L) {
+                        final float x = event.getX();
+                        final float y = event.getY();
+                        webView.postDelayed(() -> {
+                            if (webView == null) return;
+                            String js = "(function(){try{if(window.GhazalInteractionRescue&&typeof window.GhazalInteractionRescue.nativeTap==='function'){window.GhazalInteractionRescue.nativeTap(" + x + "," + y + ");}}catch(e){}})();";
+                            webView.evaluateJavascript(js, null);
+                        }, 135L);
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return false;
+        });
+    }
+
+    WebView webViewForTesting() {
+        return webView;
+    }
+
+    boolean isPageReadyForTesting() {
+        if (webView == null) return false;
+        String url = webView.getUrl();
+        if (url == null || !url.startsWith("file:///android_asset/")) return false;
+        return pageReadyForTesting || webView.getProgress() >= 80 || webView.getContentHeight() > 0;
+    }
+
+    String getWebViewTestState() {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("readyFlag", pageReadyForTesting);
+            out.put("progress", webView == null ? -1 : webView.getProgress());
+            out.put("url", webView == null ? JSONObject.NULL : webView.getUrl());
+            out.put("contentHeight", webView == null ? -1 : webView.getContentHeight());
+            out.put("visibility", webView == null ? -1 : webView.getVisibility());
+            out.put("attached", webView != null && webView.isAttachedToWindow());
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
+    void resetWebAppForTesting() {
+        if (webView == null) return;
+        pageReadyForTesting = false;
+        WebStorage.getInstance().deleteAllData();
+        webView.clearHistory();
+        webView.clearCache(true);
+        webView.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
@@ -284,13 +376,62 @@ public class MainActivity extends FragmentActivity {
         NotificationScheduler.cancel(this);
     }
 
+    void recordUiInteraction(String descriptor) {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED) return;
+        SharedPreferences prefs = getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE);
+        int count = prefs.getInt("count", 0) + 1;
+        prefs.edit()
+                .putString("last_action", descriptor == null ? "" : descriptor)
+                .putLong("last_action_at", System.currentTimeMillis())
+                .putInt("count", count)
+                .apply();
+    }
+
+    void publishInteractionMap(String json) {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED || webView == null) return;
+        final String payload = json == null || json.trim().isEmpty() ? "[]" : json;
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            int[] location = new int[]{0, 0};
+            webView.getLocationOnScreen(location);
+            JSONObject wrapper = new JSONObject();
+            try {
+                wrapper.put("map", new JSONArray(payload));
+                wrapper.put("viewX", location[0]);
+                wrapper.put("viewY", location[1]);
+                wrapper.put("density", getResources().getDisplayMetrics().density);
+                wrapper.put("width", webView.getWidth());
+                wrapper.put("height", webView.getHeight());
+                wrapper.put("updatedAt", System.currentTimeMillis());
+            } catch (Exception ignored) { }
+            getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE)
+                    .edit().putString("ui_map", wrapper.toString()).apply();
+        });
+    }
+
+    String getInteractionQaState() {
+        if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED) return "{}";
+        SharedPreferences prefs = getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE);
+        JSONObject out = new JSONObject();
+        try {
+            out.put("lastAction", prefs.getString("last_action", ""));
+            out.put("lastActionAt", prefs.getLong("last_action_at", 0L));
+            out.put("count", prefs.getInt("count", 0));
+            out.put("uiMap", prefs.getString("ui_map", "{}"));
+        } catch (Exception ignored) { }
+        return out.toString();
+    }
+
     boolean isAppLockEnabled() {
-        return securityPreferences != null && securityPreferences.getBoolean("app_lock", true);
+        return securityPreferences != null && securityPreferences.getBoolean("app_lock", false);
     }
 
     void setAppLockEnabled(boolean enabled) {
         if (securityPreferences == null) return;
-        securityPreferences.edit().putBoolean("app_lock", enabled).apply();
+        securityPreferences.edit()
+                .putBoolean("app_lock", enabled)
+                .putBoolean("app_lock_user_selected", true)
+                .apply();
         runOnUiThread(() -> {
             if (enabled) {
                 appUnlocked = false;
@@ -325,6 +466,9 @@ public class MainActivity extends FragmentActivity {
                     .putBoolean("touch_compat_v14_0_1", true);
             if (!securityPreferences.getBoolean("privacy_user_selected", false)) {
                 editor.putBoolean("privacy_screen", false);
+            }
+            if (!securityPreferences.getBoolean("app_lock_user_selected", false)) {
+                editor.putBoolean("app_lock", false);
             }
             editor.apply();
         }
