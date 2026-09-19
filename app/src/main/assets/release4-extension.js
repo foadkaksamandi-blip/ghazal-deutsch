@@ -155,9 +155,7 @@
   document.addEventListener("input",e=>{if(e.target&&e.target.id==="r4-dict-search"){dictionaryQuery=e.target.value;renderDictionary(false);}});
   document.addEventListener("change",e=>{if(e.target&&e.target.id==="r4-pack-file"){const f=e.target.files&&e.target.files[0];importPackFile(f);}else if(e.target&&e.target.id==="r4-exam-mode"){state.settings.examMode=!!e.target.checked;save();}});
 
-  const observer=new MutationObserver(()=>inject());
-  if(view)observer.observe(view,{childList:true,subtree:true});
-  if(modal)observer.observe(modal,{attributes:true,attributeFilter:["hidden"],childList:true,subtree:true});
+  document.addEventListener("ghazal:ui-changed",inject);
   applyImportedPacks();
   applyAccessibility();
   inject();
