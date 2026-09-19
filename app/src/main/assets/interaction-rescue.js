@@ -23,6 +23,7 @@
   let lastNativeY=0;
   let cachedRows=[];
   let uidCounter=0;
+  let nativeSuppressedUntil=0;
 
   function now(){return Date.now();}
   function interactive(node){
@@ -138,22 +139,11 @@
     }
     return null;
   }
-  function nativeTap(pxX,pxY,gestureAt){
+  function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
-    const startedAt=Number(gestureAt)||0;
-    // Android waits before invoking this fallback. If WebView (or the JS
-    // touch/pointer rescue) already activated a control for this gesture,
-    // do not hit-test again: the original control may have disappeared and
-    // a second tap would otherwise leak through to a control underneath.
-    const browserTargetWasRemoved=startedAt>0&&lastBrowserActivationAt>=startedAt-20&&lastBrowserTarget&&!lastBrowserTarget.isConnected;
-    const rescueTargetWasRemoved=startedAt>0&&lastRescueAt>=startedAt-20&&lastRescueTarget&&!lastRescueTarget.isConnected;
-    if(browserTargetWasRemoved||rescueTargetWasRemoved){
-      // The gesture already changed the DOM (for example closing a modal).
-      // Never re-hit-test the exposed UI underneath or a delayed fallback can
-      // become a ghost tap. Connected controls are left to same-target
-      // de-duplication inside clickElement().
-      native("recordUiInteraction","native-skip:detached-handled-target");
+    if(now()<nativeSuppressedUntil){
+      native("recordUiInteraction","native-skip:dom-transition");
       return false;
     }
     const target=candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
@@ -161,7 +151,11 @@
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
     }
-    return clickElement(target,"native");
+    setTimeout(()=>{
+      if(now()<nativeSuppressedUntil)return;
+      clickElement(target,"native");
+    },70);
+    return true;
   }
   function deferredTouch(target,source){
     target=interactive(target);
@@ -216,6 +210,13 @@
     lastBrowserTarget=target;
     normalCount++;
     stamp(target,event.isTrusted?"click":"synthetic-click");
+    // Some controls close a modal or re-render themselves during bubbling.
+    // After the event completes, detect that DOM transition and briefly block
+    // the delayed Android fallback so the same physical gesture cannot leak
+    // through to a newly exposed control underneath.
+    queueMicrotask(()=>{
+      if(!target.isConnected)nativeSuppressedUntil=Math.max(nativeSuppressedUntil,now()+280);
+    });
   },true);
 
   document.addEventListener("touchend",event=>{
@@ -241,7 +242,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.1.1",
+    VERSION:"2.2.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
