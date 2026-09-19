@@ -22,6 +22,7 @@
   let lastNativeX=0;
   let lastNativeY=0;
   let cachedRows=[];
+  let uidCounter=0;
 
   function now(){return Date.now();}
   function interactive(node){
@@ -34,6 +35,16 @@
     return target;
   }
   function same(a,b){return !!a&&!!b&&(a===b||a.contains(b)||b.contains(a));}
+  function uidFor(target){
+    if(!target)return "";
+    if(!target.dataset.ghzControlId)target.dataset.ghzControlId="ghz-"+(++uidCounter);
+    return target.dataset.ghzControlId;
+  }
+  function targetByUid(uid){
+    if(!uid)return null;
+    try{return document.querySelector('[data-ghz-control-id="'+String(uid).replace(/"/g,'\\"')+'"]');}
+    catch(_){return null;}
+  }
   function descriptor(target){
     if(!target)return "";
     const keys=["action","nav","osAction","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"];
@@ -101,8 +112,10 @@
     for(const [x,y] of variants){
       const hit=rowsForPoint(x,y)[0];
       if(hit){
-        const target=interactive(targetByDescriptor(hit.id));
-        if(target)return target;
+        const exact=interactive(targetByUid(hit.uid));
+        if(exact)return exact;
+        const fallback=interactive(targetByDescriptor(hit.id));
+        if(fallback)return fallback;
       }
     }
     return null;
@@ -155,6 +168,7 @@
       if(rect.width<2||rect.height<2)return;
       rows.push({
         id:descriptor(el),
+        uid:uidFor(el),
         x:rect.left,
         y:rect.top,
         width:rect.width,
@@ -213,7 +227,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.0.0",
+    VERSION:"2.1.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
