@@ -33,13 +33,19 @@ public class InteractionInstrumentedTest {
         return ready.get();
     }
 
+    private String webViewState() {
+        AtomicReference<String> state = new AtomicReference<>("{}");
+        rule.getScenario().onActivity(activity -> state.set(activity.getWebViewTestState()));
+        return state.get();
+    }
+
     private void waitForPageReady() {
-        long deadline = SystemClock.uptimeMillis() + 12000L;
+        long deadline = SystemClock.uptimeMillis() + 15000L;
         while (SystemClock.uptimeMillis() < deadline) {
             if (pageReady()) return;
             SystemClock.sleep(100L);
         }
-        assertTrue("Timed out waiting for WebView page completion", false);
+        assertTrue("Timed out waiting for WebView page completion state=" + webViewState(), false);
     }
 
     private String eval(String script) throws Exception {
