@@ -33,6 +33,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
@@ -240,13 +241,20 @@ public class MainActivity extends FragmentActivity {
     }
 
     boolean isPageReadyForTesting() {
-        return pageReadyForTesting;
+        return webView != null
+                && pageReadyForTesting
+                && webView.getProgress() >= 100
+                && webView.getUrl() != null
+                && webView.getUrl().startsWith("file:///android_asset/");
     }
 
     void resetWebAppForTesting() {
         if (webView == null) return;
         pageReadyForTesting = false;
-        webView.loadUrl("javascript:(function(){try{localStorage.clear();sessionStorage.clear();}catch(e){} location.reload();})()");
+        WebStorage.getInstance().deleteAllData();
+        webView.clearHistory();
+        webView.clearCache(true);
+        webView.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
