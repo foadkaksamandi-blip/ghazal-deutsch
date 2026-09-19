@@ -11,9 +11,6 @@
       setTimeout(refresh,40);
     }else if(event.target.closest&&event.target.closest("[data-nav]"))setTimeout(refresh,40);
   });
-  const observer=new MutationObserver(refresh);
-  if(modal)observer.observe(modal,{attributes:true,attributeFilter:["hidden"]});
-  const nav=document.querySelector(".bottom-nav");if(nav)observer.observe(nav,{attributes:true,subtree:true,attributeFilter:["class"]});
-  const view=document.getElementById("view");if(view)observer.observe(view,{childList:true,subtree:false});
+  document.addEventListener("ghazal:ui-changed",refresh);
   setTimeout(refresh,100);
 })();
