@@ -204,5 +204,5 @@
     const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r11='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r11="hub"><span class="big-icon">🧠</span><strong>Stage 3 + 4</strong><small>Learning Brain و Classroom Pro.</small></button>');
     const profile=view.querySelector(".settings-card");if(profile&&!view.querySelector("[data-r11='classroom']"))profile.insertAdjacentHTML("beforebegin",'<button class="card skill-card" style="width:100%;margin-bottom:10px" data-r11="classroom"><span class="big-icon">🏫</span><strong>Classroom Pro</strong><small>پنل کامل استاد و زبان‌آموز.</small></button>');
   }
-  const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,450);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,450);
 })();
