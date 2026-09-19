@@ -105,7 +105,8 @@ public class MainActivity extends FragmentActivity {
     private float rescueDownX;
     private float rescueDownY;
     private long rescueDownAt;
-    private boolean rescueMoved;\n    private volatile boolean pageReadyForTesting = false;
+    private boolean rescueMoved;
+    private volatile boolean pageReadyForTesting = false;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -189,7 +190,8 @@ public class MainActivity extends FragmentActivity {
         });
 
         setContentView(webView);
-        pageReadyForTesting = false;\n        webView.loadUrl("file:///android_asset/index.html");
+        pageReadyForTesting = false;
+        webView.loadUrl("file:///android_asset/index.html");
         webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
         appUnlocked = !isAppLockEnabled();
     }
