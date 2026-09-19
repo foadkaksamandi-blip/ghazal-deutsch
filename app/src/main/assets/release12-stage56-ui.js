@@ -148,5 +148,5 @@
     const grid=view.querySelector(".skill-grid");if(grid&&!view.querySelector("[data-r12='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r12="hub"><span class="big-icon">🧰</span><strong>Stage 5 + 6</strong><small>Product Pro و Security Center.</small></button>');
     const profile=view.querySelector(".settings-card");if(profile&&!view.querySelector("[data-r12='security']"))profile.insertAdjacentHTML("beforebegin",'<button class="card skill-card" style="width:100%;margin-bottom:10px" data-r12="security"><span class="big-icon">🛡</span><strong>Security Center</strong><small>Integrity، Encryption، App Lock و Release Gate.</small></button>');
   }
-  applyAccessibility();const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,500);
+  applyAccessibility();document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,500);
 })();
