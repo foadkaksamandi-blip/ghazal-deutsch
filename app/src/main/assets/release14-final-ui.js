@@ -30,5 +30,5 @@
     if(!footer&&view.children.length)view.insertAdjacentHTML("beforeend",'<div class="r14-subtle">GHAZAL '+Core.VERSION+' · FOAD</div>');
   }
   document.addEventListener("click",e=>{const t=e.target.closest("[data-r14]");if(!t)return;if(t.dataset.r14==="about")open();if(t.dataset.r14==="close")close();});
-  new MutationObserver(inject).observe(view,{childList:true,subtree:true});setTimeout(inject,600);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,600);
 })();
