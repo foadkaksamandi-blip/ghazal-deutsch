@@ -141,11 +141,20 @@
     toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
   }
 
+  function emitUiChanged(reason) {
+    requestAnimationFrame(() => {
+      document.dispatchEvent(new CustomEvent("ghazal:ui-changed", {
+        detail: { reason: reason || "render", view: currentView, modalOpen: !modal.hidden }
+      }));
+    });
+  }
+
   function openModal(html, locked) {
     modalContent.innerHTML = html;
     modal.dataset.locked = locked ? "true" : "false";
     modal.hidden = false;
     modalContent.scrollTop = 0;
+    emitUiChanged("modal-open");
   }
 
   function closeModal(force) {
@@ -156,6 +165,7 @@
     modal.dataset.locked = "false";
     activeLessonId = null;
     lessonResult = null;
+    emitUiChanged("modal-close");
   }
 
   function navigate(name) {
@@ -174,6 +184,7 @@
     else if (currentView === "migration") renderMigration();
     else if (currentView === "profile") renderProfile();
     else renderHome();
+    emitUiChanged("view-render");
   }
 
   function ensureDailyState() {
@@ -606,6 +617,7 @@
     `;
     requestAnimationFrame(bindWelcomeButtons);
     setTimeout(bindWelcomeButtons, 120);
+    emitUiChanged("onboarding");
   }
 
   function startPlacement() {
