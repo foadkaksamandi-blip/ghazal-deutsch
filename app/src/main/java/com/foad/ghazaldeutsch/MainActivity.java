@@ -228,9 +228,10 @@ public class MainActivity extends FragmentActivity {
                     if (!rescueMoved && elapsed >= 0L && elapsed <= 900L) {
                         final float x = event.getX();
                         final float y = event.getY();
+                        final long gestureAt = System.currentTimeMillis();
                         webView.postDelayed(() -> {
                             if (webView == null) return;
-                            String js = "(function(){try{if(window.GhazalInteractionRescue&&typeof window.GhazalInteractionRescue.nativeTap==='function'){window.GhazalInteractionRescue.nativeTap(" + x + "," + y + ");}}catch(e){}})();";
+                            String js = "(function(){try{if(window.GhazalInteractionRescue&&typeof window.GhazalInteractionRescue.nativeTap==='function'){window.GhazalInteractionRescue.nativeTap(" + x + "," + y + "," + gestureAt + ");}}catch(e){}})();";
                             webView.evaluateJavascript(js, null);
                         }, 135L);
                     }
