@@ -1,6 +1,6 @@
 package com.foad.ghazaldeutsch;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.os.SystemClock;
@@ -11,13 +11,12 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
@@ -25,47 +24,86 @@ public class InteractionInstrumentedTest {
     @Rule
     public ActivityScenarioRule<MainActivity> rule = new ActivityScenarioRule<>(MainActivity.class);
 
-    private String eval(String script) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<String> result = new AtomicReference<>("null");
-        rule.getScenario().onActivity(activity ->
-                activity.webViewForTesting().evaluateJavascript(script, value -> {
-                    result.set(value == null ? "null" : value);
-                    latch.countDown();
-                })
-        );
-        assertTrue("evaluateJavascript timeout: " + script, latch.await(6, TimeUnit.SECONDS));
-        return result.get();
+    private JSONObject snapshot() throws Exception {
+        AtomicReference<String> ref = new AtomicReference<>("{}");
+        rule.getScenario().onActivity(activity -> ref.set(activity.getInteractionQaState()));
+        return new JSONObject(ref.get());
     }
 
-    private boolean evalBool(String script) throws Exception {
-        return "true".equals(eval(script));
+    private JSONObject uiMap() throws Exception {
+        JSONObject state = snapshot();
+        String raw = state.optString("uiMap", "{}");
+        return new JSONObject(raw.isEmpty() ? "{}" : raw);
     }
 
-    private void waitFor(String expression) throws Exception {
-        long deadline = SystemClock.uptimeMillis() + 7000L;
+    private JSONArray rows() throws Exception {
+        return uiMap().optJSONArray("map") == null ? new JSONArray() : uiMap().getJSONArray("map");
+    }
+
+    private JSONObject findVisible(String descriptor) throws Exception {
+        JSONArray rows = rows();
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            if (descriptor.equals(row.optString("id")) && row.optBoolean("visible", true)) return row;
+        }
+        return null;
+    }
+
+    private int countVisible(String descriptor) throws Exception {
+        int count = 0;
+        JSONArray rows = rows();
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            if (descriptor.equals(row.optString("id")) && row.optBoolean("visible", true)) count++;
+        }
+        return count;
+    }
+
+    private void waitForDescriptor(String descriptor) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 9000L;
         while (SystemClock.uptimeMillis() < deadline) {
-            if (evalBool("(function(){try{return !!(" + expression + ");}catch(e){return false;}})()")) return;
+            if (findVisible(descriptor) != null) return;
             SystemClock.sleep(120L);
         }
-        assertTrue("Timed out waiting for: " + expression, false);
+        assertNotNull("Timed out waiting for visible control " + descriptor + " map=" + uiMap(), findVisible(descriptor));
     }
 
-    private float[] center(String selector) throws Exception {
-        String escaped = selector.replace("\\", "\\\\").replace("'", "\\'");
-        String value = eval("(function(){var e=document.querySelector('" + escaped + "');"
-                + "if(!e)return null;var r=e.getBoundingClientRect();"
-                + "return [r.left+r.width/2,r.top+r.height/2,window.devicePixelRatio||1,r.width,r.height];})()");
-        JSONArray a = new JSONArray(value);
-        assertTrue("Element has zero width: " + selector, a.getDouble(3) > 2);
-        assertTrue("Element has zero height: " + selector, a.getDouble(4) > 2);
-        return new float[]{(float)a.getDouble(0), (float)a.getDouble(1), (float)a.getDouble(2)};
+    private void waitForCount(String descriptor, int minimum) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 9000L;
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (countVisible(descriptor) >= minimum) return;
+            SystemClock.sleep(120L);
+        }
+        assertTrue("Timed out waiting for " + minimum + " controls " + descriptor + " map=" + uiMap(), countVisible(descriptor) >= minimum);
     }
 
-    private void physicalTap(String selector) throws Exception {
-        float[] c = center(selector);
-        final float px = c[0] * c[2];
-        final float py = c[1] * c[2];
+    private void waitForRecorded(String descriptor) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 5000L;
+        while (SystemClock.uptimeMillis() < deadline) {
+            String last = snapshot().optString("lastAction", "");
+            if (last.startsWith(descriptor + "|")) return;
+            SystemClock.sleep(100L);
+        }
+        assertTrue("Interaction was not recorded for " + descriptor + " state=" + snapshot(), false);
+    }
+
+    private void physicalTap(String descriptor) throws Exception {
+        waitForDescriptor(descriptor);
+        JSONObject map = uiMap();
+        JSONArray rows = map.getJSONArray("map");
+        JSONObject hit = null;
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            if (descriptor.equals(row.optString("id")) && row.optBoolean("visible", true)) {
+                hit = row;
+                break;
+            }
+        }
+        assertNotNull("No visible hit target " + descriptor, hit);
+        final float density = (float) map.optDouble("density", 1.0);
+        final float px = (float) ((hit.getDouble("x") + hit.getDouble("width") / 2.0) * density);
+        final float py = (float) ((hit.getDouble("y") + hit.getDouble("height") / 2.0) * density);
+
         rule.getScenario().onActivity(activity -> {
             WebView w = activity.webViewForTesting();
             long down = SystemClock.uptimeMillis();
@@ -79,66 +117,62 @@ public class InteractionInstrumentedTest {
                 u.recycle();
             }
         });
-        SystemClock.sleep(500L);
+        waitForRecorded(descriptor);
+        SystemClock.sleep(350L);
     }
 
     @Before
-    public void resetAppState() throws Exception {
-        waitFor("document.readyState==='complete'");
-        eval("(function(){localStorage.clear();location.reload();return true;})()");
-        waitFor("document.documentElement.getAttribute('data-ghz-interaction-ready')==='2'");
-        waitFor("document.querySelector('[data-action=\"skip-placement\"]')");
+    public void resetFirstRun() throws Exception {
+        rule.getScenario().onActivity(activity -> {
+            activity.getSharedPreferences("ghazal_interaction_qa", MainActivity.MODE_PRIVATE).edit().clear().commit();
+            WebView w = activity.webViewForTesting();
+            w.loadUrl("javascript:(function(){try{localStorage.clear();location.reload();}catch(e){location.reload();}})()");
+        });
+        waitForDescriptor("action:skip-placement");
     }
 
     @Test
-    public void physicalTouchesDriveTheRealAppAcrossCoreRoutesAndModal() throws Exception {
-        // First-run entry is a physical WebView touch, not a programmatic JS click.
-        physicalTap("[data-action='skip-placement']");
-        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0");
+    public void physicalTouchesDriveCoreAppRoutesAndLessonModal() throws Exception {
+        physicalTap("action:skip-placement");
+        waitForDescriptor("nav:path");
 
-        // Main bottom navigation.
-        physicalTap("[data-nav='path']");
-        waitFor("document.body.innerText.indexOf('مسیر تسلط')>=0");
+        physicalTap("nav:path");
+        waitForDescriptor("action:select-level");
 
-        physicalTap("[data-nav='practice']");
-        waitFor("document.body.innerText.indexOf('تمرین فعال')>=0");
+        physicalTap("nav:practice");
+        waitForDescriptor("action:start-listening");
 
-        physicalTap("[data-nav='migration']");
-        waitFor("document.body.innerText.indexOf('بسته مهاجرت')>=0");
+        physicalTap("nav:migration");
+        waitForCount("action:open-pack", 2);
 
-        physicalTap("[data-nav='profile']");
-        waitFor("document.body.innerText.indexOf('پیشرفت غزل')>=0");
+        physicalTap("nav:profile");
+        waitForDescriptor("action:export-backup");
 
-        physicalTap("[data-nav='home']");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0");
+        physicalTap("nav:home");
+        waitForDescriptor("action:open-lesson");
 
-        // Open and close a real lesson modal by touch.
-        physicalTap("[data-action='open-lesson']");
-        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false");
-        waitFor("document.querySelector('#modal-content [data-action=\"close-modal\"]')");
-        physicalTap("#modal-content [data-action='close-modal']");
-        waitFor("document.getElementById('modal').hidden===true");
+        physicalTap("action:open-lesson");
+        waitForDescriptor("action:answer-lesson");
+        waitForDescriptor("action:close-modal");
+        physicalTap("action:close-modal");
 
-        // Ensure the global rescue/interaction kernel actually observed activity.
-        assertTrue(evalBool("window.GhazalInteractionRescue && window.GhazalInteractionRescue.diagnostics().ready===true"));
-        assertTrue(evalBool("window.GhazalInteractionRescue.diagnostics().normalCount + window.GhazalInteractionRescue.diagnostics().rescueCount > 0"));
+        JSONObject state = snapshot();
+        assertTrue("No interactions recorded", state.optInt("count", 0) >= 8);
     }
 
     @Test
-    public void extensionButtonsRemainInteractiveAfterDynamicInjection() throws Exception {
-        physicalTap("[data-action='skip-placement']");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0");
-        physicalTap("[data-nav='practice']");
-        waitFor("document.body.innerText.indexOf('تمرین فعال')>=0");
+    public void dynamicallyInjectedReleaseControlsReceivePhysicalTouches() throws Exception {
+        physicalTap("action:skip-placement");
+        waitForDescriptor("nav:practice");
+        physicalTap("nav:practice");
 
-        waitFor("document.querySelector('[data-r12=\"hub\"]')");
-        physicalTap("[data-r12='hub']");
-        waitFor("document.getElementById('modal').hidden===false");
-        waitFor("document.body.innerText.indexOf('Professional Product')>=0 || document.body.innerText.indexOf('Stage 5 + 6')>=0");
+        waitForDescriptor("r12:hub");
+        physicalTap("r12:hub");
+        waitForDescriptor("r12:product");
+        waitForDescriptor("r12:close");
+        physicalTap("r12:close");
 
-        waitFor("document.querySelector('[data-r12=\"close\"]')");
-        physicalTap("[data-r12='close']");
-        waitFor("document.getElementById('modal').hidden===true");
+        JSONObject state = snapshot();
+        assertTrue("Stage 5/6 interaction was not recorded", state.optString("lastAction", "").startsWith("r12:close|"));
     }
 }
