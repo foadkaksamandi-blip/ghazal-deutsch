@@ -363,20 +363,24 @@ public class MainActivity extends FragmentActivity {
 
     void publishInteractionMap(String json) {
         if (!BuildConfig.QA_INTERNAL_TOOLS_ENABLED || webView == null) return;
-        int[] location = new int[]{0, 0};
-        webView.getLocationOnScreen(location);
-        JSONObject wrapper = new JSONObject();
-        try {
-            wrapper.put("map", new JSONArray(json == null || json.trim().isEmpty() ? "[]" : json));
-            wrapper.put("viewX", location[0]);
-            wrapper.put("viewY", location[1]);
-            wrapper.put("density", getResources().getDisplayMetrics().density);
-            wrapper.put("width", webView.getWidth());
-            wrapper.put("height", webView.getHeight());
-            wrapper.put("updatedAt", System.currentTimeMillis());
-        } catch (Exception ignored) { }
-        getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE)
-                .edit().putString("ui_map", wrapper.toString()).apply();
+        final String payload = json == null || json.trim().isEmpty() ? "[]" : json;
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            int[] location = new int[]{0, 0};
+            webView.getLocationOnScreen(location);
+            JSONObject wrapper = new JSONObject();
+            try {
+                wrapper.put("map", new JSONArray(payload));
+                wrapper.put("viewX", location[0]);
+                wrapper.put("viewY", location[1]);
+                wrapper.put("density", getResources().getDisplayMetrics().density);
+                wrapper.put("width", webView.getWidth());
+                wrapper.put("height", webView.getHeight());
+                wrapper.put("updatedAt", System.currentTimeMillis());
+            } catch (Exception ignored) { }
+            getSharedPreferences("ghazal_interaction_qa", MODE_PRIVATE)
+                    .edit().putString("ui_map", wrapper.toString()).apply();
+        });
     }
 
     String getInteractionQaState() {
