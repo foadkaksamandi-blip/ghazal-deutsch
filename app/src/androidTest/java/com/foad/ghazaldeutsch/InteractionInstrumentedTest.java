@@ -164,6 +164,11 @@ public class InteractionInstrumentedTest {
         waitFor("!!document.querySelector('[data-r12=\"close\"]')", "Stage 5/6 close button");
         physicalTap("[data-r12='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5/6 modal close");
+        // A delayed Android fallback must not click through the now-closed modal
+        // and re-open the hub underneath.
+        SystemClock.sleep(650L);
+        assertTrue("Stage 5/6 modal reopened after close (ghost-tap regression)",
+                evalBool("document.getElementById('modal').hidden===true"));
 
         assertTrue("Interaction kernel did not remain alive",
                 evalBool("window.GhazalInteractionRescue && window.GhazalInteractionRescue.diagnostics().ready===true"));
