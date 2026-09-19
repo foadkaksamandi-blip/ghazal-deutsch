@@ -138,16 +138,24 @@
     }
     return null;
   }
-  function nativeTap(pxX,pxY){
+  function nativeTap(pxX,pxY,gestureAt){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
+    const startedAt=Number(gestureAt)||0;
+    // Android waits before invoking this fallback. If WebView (or the JS
+    // touch/pointer rescue) already activated a control for this gesture,
+    // do not hit-test again: the original control may have disappeared and
+    // a second tap would otherwise leak through to a control underneath.
+    if(startedAt>0&&(lastBrowserActivationAt>=startedAt-20||lastRescueAt>=startedAt-20)){
+      native("recordUiInteraction","native-skip:handled");
+      return false;
+    }
     const target=candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
     }
-    setTimeout(()=>clickElement(target,"native"),70);
-    return true;
+    return clickElement(target,"native");
   }
   function deferredTouch(target,source){
     target=interactive(target);
