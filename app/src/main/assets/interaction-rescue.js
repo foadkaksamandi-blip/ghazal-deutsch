@@ -146,8 +146,14 @@
     // touch/pointer rescue) already activated a control for this gesture,
     // do not hit-test again: the original control may have disappeared and
     // a second tap would otherwise leak through to a control underneath.
-    if(startedAt>0&&(lastBrowserActivationAt>=startedAt-20||lastRescueAt>=startedAt-20)){
-      native("recordUiInteraction","native-skip:handled");
+    const browserTargetWasRemoved=startedAt>0&&lastBrowserActivationAt>=startedAt-20&&lastBrowserTarget&&!lastBrowserTarget.isConnected;
+    const rescueTargetWasRemoved=startedAt>0&&lastRescueAt>=startedAt-20&&lastRescueTarget&&!lastRescueTarget.isConnected;
+    if(browserTargetWasRemoved||rescueTargetWasRemoved){
+      // The gesture already changed the DOM (for example closing a modal).
+      // Never re-hit-test the exposed UI underneath or a delayed fallback can
+      // become a ghost tap. Connected controls are left to same-target
+      // de-duplication inside clickElement().
+      native("recordUiInteraction","native-skip:detached-handled-target");
       return false;
     }
     const target=candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
@@ -235,7 +241,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.1.0",
+    VERSION:"2.1.1",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
