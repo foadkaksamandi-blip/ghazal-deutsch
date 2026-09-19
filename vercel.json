@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/healthz", "destination": "/api?route=healthz" },
+    { "source": "/v1/:path*", "destination": "/api?route=v1/:path*" }
+  ],
+  "functions": { "api/index.js": { "maxDuration": 30 } }
+}
