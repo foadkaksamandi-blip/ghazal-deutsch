@@ -91,5 +91,5 @@ test('Android native touch rescue is installed and delegates failed taps into th
 
 test('physical-touch instrumentation covers onboarding navigation lesson modal and dynamic Stage 5/6 UI',()=>{
   const testFile=fs.readFileSync(path.join(ROOT,'app/src/androidTest/java/com/foad/ghazaldeutsch/InteractionInstrumentedTest.java'),'utf8');
-  for(const token of ['dispatchTouchEvent','skip-placement',"data-nav='path'","data-nav='practice'","data-nav='migration'","data-nav='profile'","data-action='open-lesson'","data-r12='hub'"])assert.ok(testFile.includes(token),token);
+  for(const token of ['dispatchTouchEvent','action:skip-placement','nav:path','nav:practice','nav:migration','nav:profile','action:open-lesson','r12:hub'])assert.ok(testFile.includes(token),token);
 });
