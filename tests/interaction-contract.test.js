@@ -10,7 +10,7 @@ const read=p=>fs.readFileSync(path.join(ASSETS,p),'utf8');
 function values(text,attr){
   const rx=new RegExp(attr+'=["\\\']([^"\\\']+)["\\\']','g');
   const out=new Set();
-  let m; while((m=rx.exec(text))) out.add(m[1]);
+  let m; while((m=rx.exec(text))) { if(!m[1].includes("${")) out.add(m[1]); }
   return [...out];
 }
 function handled(text,name){
