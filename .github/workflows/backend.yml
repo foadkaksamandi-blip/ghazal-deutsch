@@ -1,0 +1,41 @@
+name: Stage 2 Backend Contract QA
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install backend runtime dependency
+        run: npm install --no-audit --no-fund --ignore-scripts pg@8.13.1
+      - name: Existing and backend tests
+        run: npm test
+      - name: Syntax check backend
+        run: |
+          node --check api/index.js
+          node --check backend/app.js
+          node --check backend/crypto.js
+          node --check backend/config.js
+          node --check backend/pg-store.js
+          node --check backend/memory-store.js
+          node --check backend/ai.js
+      - name: Migration contract checks
+        run: |
+          grep -q 'create table if not exists ghz_users' backend/migrations/001_init.sql
+          grep -q 'create table if not exists ghz_progress' backend/migrations/001_init.sql
+          grep -q 'create table if not exists ghz_classes' backend/migrations/001_init.sql
+          grep -q 'ghz_idempotency' backend/migrations/001_init.sql
+          grep -q 'ghz_rate_limits' backend/migrations/001_init.sql
+      - name: No runtime secrets committed
+        run: |
+          ! grep -RIE --exclude='*.md' --exclude='*.test.js' '(sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|DATABASE_URL=postgres)' backend api vercel.json
