@@ -161,6 +161,12 @@ public class MainActivity extends FragmentActivity {
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageCommitVisible(WebView view, String url) {
+                super.onPageCommitVisible(view, url);
+                pageReadyForTesting = true;
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 pageReadyForTesting = true;
@@ -241,11 +247,23 @@ public class MainActivity extends FragmentActivity {
     }
 
     boolean isPageReadyForTesting() {
-        return webView != null
-                && pageReadyForTesting
-                && webView.getProgress() >= 100
-                && webView.getUrl() != null
-                && webView.getUrl().startsWith("file:///android_asset/");
+        if (webView == null) return false;
+        String url = webView.getUrl();
+        if (url == null || !url.startsWith("file:///android_asset/")) return false;
+        return pageReadyForTesting || webView.getProgress() >= 80 || webView.getContentHeight() > 0;
+    }
+
+    String getWebViewTestState() {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("readyFlag", pageReadyForTesting);
+            out.put("progress", webView == null ? -1 : webView.getProgress());
+            out.put("url", webView == null ? JSONObject.NULL : webView.getUrl());
+            out.put("contentHeight", webView == null ? -1 : webView.getContentHeight());
+            out.put("visibility", webView == null ? -1 : webView.getVisibility());
+            out.put("attached", webView != null && webView.isAttachedToWindow());
+        } catch (Exception ignored) { }
+        return out.toString();
     }
 
     void resetWebAppForTesting() {
