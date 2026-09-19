@@ -91,6 +91,9 @@ public class InteractionInstrumentedTest {
     }
 
     private void physicalTap(String selector) throws Exception {
+        String q = selector.replace("\\", "\\\\").replace("'", "\\'");
+        eval("(function(){var e=document.querySelector('" + q + "');if(e)e.scrollIntoView({block:'center',inline:'center'});return !!e;})()");
+        SystemClock.sleep(180L);
         float[] c = center(selector);
         final float px = c[0] * c[2];
         final float py = c[1] * c[2];
