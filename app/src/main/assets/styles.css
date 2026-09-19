@@ -401,3 +401,7 @@ body.onboarding-active .view {
   z-index: 100;
   pointer-events: auto !important;
 }
+
+
+/* Interaction invariant: a hidden modal must never remain a touch layer. */
+.modal[hidden] { display: none !important; pointer-events: none !important; }
