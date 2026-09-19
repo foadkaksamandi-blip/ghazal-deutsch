@@ -136,5 +136,5 @@
   });
   document.addEventListener("input",e=>{if(e.target&&e.target.id==="r8-dict-q"){const el=document.getElementById("r8-dict-results");if(el)el.innerHTML=renderDictResults(e.target.value,false);}});
   document.addEventListener("change",e=>{if(e.target.id==="r8-exam-name"||e.target.id==="r8-exam-level"||e.target.id==="r8-exam-skill"){examName=document.getElementById("r8-exam-name")?.value||"";examLevel=document.getElementById("r8-exam-level")?.value||"";examSkill=document.getElementById("r8-exam-skill")?.value||"";showExams();}});
-  const obs=new MutationObserver(inject);obs.observe(view,{childList:true,subtree:true});setTimeout(inject,350);
+  document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,350);
 })();
