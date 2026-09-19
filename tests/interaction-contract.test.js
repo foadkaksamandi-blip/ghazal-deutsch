@@ -68,8 +68,10 @@ test('interaction kernel covers every control namespace and loads before app rou
   for(const token of ['[data-action]','[data-nav]','[data-os-action]','[data-r3]','[data-r4]','[data-r5]','[data-r6]','[data-r7]','[data-r8]','[data-r9]','[data-r10]','[data-r11]','[data-r12]','[data-r13]','[data-r14]']){
     assert.ok(rescue.includes(token),token);
   }
-  assert.ok(rescue.includes('VERSION:"2.0.0"'));
+  assert.ok(rescue.includes('VERSION:"2.1.0"'));
   assert.ok(rescue.includes('candidateFromCachedMap'));
+  assert.ok(rescue.includes('data-ghz-control-id'));
+  assert.ok(rescue.includes('targetByUid'));
   assert.ok(rescue.includes('candidateFromPoint'));
   assert.ok(index.indexOf('interaction-rescue.js')<index.indexOf('app.js'));
 });
