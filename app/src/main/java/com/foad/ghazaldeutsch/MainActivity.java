@@ -225,7 +225,7 @@ public class MainActivity extends FragmentActivity {
                     rescueMoved = true;
                     break;
                 case MotionEvent.ACTION_UP:
-                    long elapsed = System.currentTimeMillis() - rescueDownAt;
+                    long elapsed = Math.max(0L, event.getEventTime() - event.getDownTime());
                     if (!rescueMoved && elapsed >= 55L && elapsed <= 650L) {
                         final float x = event.getX();
                         final float y = event.getY();
