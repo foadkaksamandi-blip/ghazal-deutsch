@@ -24,7 +24,13 @@
   function normalizeState(raw,profileId){
     const b=initialState(profileId),r=raw&&typeof raw==="object"?raw:{},skills={...b.skills};
     Object.entries(r.skills||{}).forEach(([k,v])=>skills[k]={...skills[k],...v});
-    return{...b,...r,profileId:r.profileId||profileId||b.profileId,skills,items:r.items||{},errors:r.errors||{},vocabulary:r.vocabulary||{},grammar:r.grammar||{},history:Array.isArray(r.history)?r.history:[],missions:r.missions||{}};
+    const bank=new Map((Exercises&&Exercises.exercises||[]).map(x=>[x.id,x])),items={};
+    Object.entries(r.items||{}).forEach(([id,value])=>{
+      const v=value&&typeof value==="object"?{...value}:{},ex=bank.get(id);
+      if(ex){if(!v.skill)v.skill=skillOf(ex);if(!v.level)v.level=ex.level||"";if(!v.type)v.type=ex.type||"";if(!v.lessonId)v.lessonId=ex.lessonId||"";}
+      items[id]=v;
+    });
+    return{...b,...r,schema:b.schema,profileId:r.profileId||profileId||b.profileId,skills,items,errors:r.errors||{},vocabulary:r.vocabulary||{},grammar:r.grammar||{},history:Array.isArray(r.history)?r.history:[],missions:r.missions||{},resume:r.resume&&typeof r.resume==="object"?r.resume:null};
   }
   function skillOf(ex){return TYPE_SKILL[ex&&ex.type]||"transfer";}
   function dueMs(item){return item&&item.dueAt?new Date(item.dueAt).getTime():0;}
