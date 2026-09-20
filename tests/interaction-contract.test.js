@@ -130,3 +130,12 @@ test('close barrier is armed before DOM removal to prevent reopen click-through'
      const marker='close-barrier:';
   assert.ok(rescue.includes(marker));
 });
+
+
+test('browser-handled gesture is never rescued twice on a newly rendered control',()=>{
+  const rescue=read('interaction-rescue.js');
+  assert.ok(rescue.includes('same(lastBrowserTarget,recent)&&now()-lastBrowserActivationAt<520'));
+  assert.ok(rescue.includes('native-skip:browser-handled'));
+  assert.ok(rescue.includes('lastPhysicalTarget=null'));
+  assert.ok(rescue.includes('lastPhysicalTargetAt=0'));
+});

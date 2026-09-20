@@ -165,6 +165,12 @@
       return false;
     }
     let recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
+    if(recent&&same(lastBrowserTarget,recent)&&now()-lastBrowserActivationAt<520){
+      native("recordUiInteraction","native-skip:browser-handled");
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      return false;
+    }
     if(recent&&!recent.isConnected){
       native("recordUiInteraction","native-clear:detached-physical-target");
       lastPhysicalTarget=null;
