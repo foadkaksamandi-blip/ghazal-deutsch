@@ -4,7 +4,7 @@
   const view=document.getElementById("view"),modal=document.getElementById("modal"),box=document.getElementById("modal-content");
   if(!L||!CC||!P||!D||!E||!view||!modal||!box)return;
   const PLATFORM_KEY="ghazal_platform_v1",LEVELS=["A1","A2","B1","B2","C1","C2"];
-  let mode="learning",selectedClass="",activeAssignment=null,activeItem=null,speechTarget=null,previousSpeech=window.onSpeechResult;
+  let mode="learning",selectedClass="",activeAssignment=null,activeItem=null,activeQuizIndex=0,speechTarget=null,previousSpeech=window.onSpeechResult;
 
   function h(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
   function open(html){modal.dataset.locked="false";box.innerHTML=html;modal.hidden=false;box.scrollTop=0;}
@@ -37,10 +37,12 @@
 
   function learningHub(){
     const s=learning(),weak=L.weakestSkills(s),due=L.dueReviews(s,999).length,gate=L.masteryGate(s,s.currentLevel),weekly=L.missionProgress(s,"weekly"),monthly=L.missionProgress(s,"monthly");
-    open(head("Stage 3","موتور هوشمند یادگیری","مدل زبان‌آموز مستقل از UI؛ Mastery با شواهد، نه صرفاً Completion.")+
+    open(head("Stage 2","موتور آموزشی آفلاین","SRS، Quiz/Test، Error Bank، Mastery، Daily Plan، Adaptive Learning و Resume دقیق.")+
+      (s.resume&&s.resume.kind?'<button class="r11-card" style="width:100%;margin-bottom:10px" data-r11="resume-learning"><strong>↩ ادامه دقیق فعالیت</strong><small>'+h(s.resume.kind+" · "+(s.resume.id||s.resume.level)+" · step "+s.resume.step)+'</small></button>':'')+
       '<div class="r11-kpis"><div class="r11-kpi"><b>'+due+'</b><span>مرور موعددار</span></div><div class="r11-kpi"><b>'+gate.evidence.attempts+'</b><span>شواهد سطح</span></div><div class="r11-kpi"><b>'+(gate.pass?"PASS":"LOCK")+'</b><span>Mastery Gate</span></div></div>'+
       '<div class="r11-grid" style="margin-top:10px">'+
       '<button class="r11-card" data-r11="daily-plan"><strong>📅 برنامه امروز</strong><small>بر اساس مرور موعددار و ضعیف‌ترین مهارت‌ها.</small></button>'+
+      '<button class="r11-card" data-r11="checkpoint"><strong>🧪 Checkpoint Quiz</strong><small>آزمون آفلاین تطبیقی با پوشش مهارت‌های ضعیف.</small></button>'+
       '<button class="r11-card" data-r11="skill-model"><strong>📊 Learner Model</strong><small>Mastery و Confidence جداگانه برای هر مهارت.</small></button>'+
       '<button class="r11-card" data-r11="error-bank"><strong>🧯 Error Bank</strong><small>خطا تا دو بازیابی موفق Resolve نمی‌شود.</small></button>'+
       '<button class="r11-card" data-r11="mastery"><strong>🔐 Mastery Gate</strong><small>شرایط واقعی عبور از سطح و Transfer Evidence.</small></button>'+
@@ -53,13 +55,13 @@
   }
 
   function dailyPlan(){
-    let s=learning(),result=L.buildDailyPlan(s,s.dailyMinutes,s.currentLevel);s=result.state;saveLearning(s);const p=result.plan;
+    let s=learning(),result=L.buildDailyPlan(s,s.dailyMinutes,s.currentLevel);s=result.state;s=L.setResume(s,{kind:"daily-plan",id:result.plan.date,step:0,level:result.plan.level});saveLearning(s);const p=result.plan;
     open(head("Adaptive Daily Plan",p.level,p.budgetMinutes+" دقیقه · "+p.estimatedMinutes+" دقیقه برنامه‌ریزی‌شده")+
       '<div class="r11-toolbar"><select id="r11-plan-level">'+LEVELS.map(x=>'<option '+(x===p.level?"selected":"")+'>'+x+'</option>').join("")+'</select><select id="r11-minutes">'+[10,15,20,25,30,45,60,90].map(x=>'<option '+(x===p.budgetMinutes?"selected":"")+'>'+x+'</option>').join("")+'</select><button data-r11="rebuild-plan">بازسازی</button></div>'+
       '<div class="r11-list">'+p.items.map((x,i)=>'<button class="r11-item" data-r11="plan-item" data-id="'+h(x.exercise.id)+'"><strong>'+(i+1)+'. '+h(x.exercise.type)+' · '+h(x.exercise.prompt).slice(0,90)+'</strong><small>'+h(x.reason)+' · '+x.minutes+' دقیقه</small></button>').join("")+'</div>');
   }
   function runExercise(id){
-    const ex=E.exercises.find(x=>x.id===id);if(!ex)return;activeItem=ex;
+    const ex=E.exercises.find(x=>x.id===id);if(!ex)return;activeItem=ex;let rs=learning();rs=L.setResume(rs,{kind:"exercise",id:ex.id,step:0,level:ex.level});saveLearning(rs);
     let html=head(ex.level,"Adaptive Practice",ex.type)+'<div class="r11-box">'+(ex.context?'<div dir="ltr">'+h(ex.context)+'</div>':'')+'<b>'+h(ex.prompt)+'</b></div>';
     if(ex.type==="dictation")html+='<button class="secondary-button" data-r11="play-exercise" style="margin-top:8px">🔊 پخش</button>';
     if(ex.answer==="free")html+='<textarea id="r11-answer" class="r11-textarea" placeholder="پاسخ آزاد…"></textarea><div class="r11-toolbar"><button data-r11="free-score" data-score="60">نیاز به کار</button><button data-r11="free-score" data-score="75">قابل قبول</button><button data-r11="free-score" data-score="90">قوی</button></div>';
@@ -68,7 +70,7 @@
     html+='<div id="r11-result"></div>';open(html);
   }
   function scoreObjective(value){
-    if(!activeItem)return;const score=E.compare(value,activeItem.answer),confidence=score>=90?90:score>=70?70:45;let s=learning();s=L.recordAttempt(s,activeItem,score,{answer:value,confidence,transfer:["contrast","reading","dictation","writing","speaking"].includes(activeItem.type)});saveLearning(s);const el=document.getElementById("r11-result");if(el)el.innerHTML='<div class="r11-box" style="margin-top:8px"><b>'+score+'%</b>هدف: <span dir="ltr">'+h(activeItem.answer)+'</span></div>';
+    if(!activeItem)return;const score=E.compare(value,activeItem.answer),confidence=score>=90?90:score>=70?70:45;let s=learning();s=L.recordAttempt(s,activeItem,score,{answer:value,confidence,transfer:["contrast","reading","dictation","writing","speaking"].includes(activeItem.type)});s=L.clearResume(s);saveLearning(s);const el=document.getElementById("r11-result");if(el)el.innerHTML='<div class="r11-box" style="margin-top:8px"><b>'+score+'%</b>هدف: <span dir="ltr">'+h(activeItem.answer)+'</span></div>';
   }
 
   function skillModel(){
@@ -99,12 +101,41 @@
     open(head("Immersion",im.level,"نسبت پیشنهادی زبان رابط آموزشی در این سطح")+'<div class="r11-kpis"><div class="r11-kpi"><b>'+im.de+'%</b><span>Deutsch</span></div><div class="r11-kpi"><b>'+im.fa+'%</b><span>فارسی</span></div></div><div class="r11-box" style="margin-top:9px">A1 فارسی بیشتر دارد؛ از B2 به بعد محیط تا حد زیادی آلمانی می‌شود و در C1/C2 ترجمه فقط برای نجات آموزشی باقی می‌ماند.</div>');
   }
   function placement(){
-    const sess=L.placementSession();const s=learning();s._placementSession=sess;saveLearning(s);
+    const sess=L.placementSession();let s=learning();s._placementSession=sess;s=L.setResume(s,{kind:"placement",id:sess.id,step:0,level:s.currentLevel});saveLearning(s);
     open(head("Placement 2.0","آزمون تشخیصی","این آزمون تشخیصی داخلی است و مدرک رسمی CEFR نیست.")+'<div class="r11-box">'+sess.items.length+' سؤال از A1 تا C2 در Meaning، Grammar، Reading و Listening آماده شده.</div><button class="primary-button" style="margin-top:8px" data-r11="placement-start">شروع سؤال اول</button>');
   }
   function placementQuestion(index){
-    const s=learning(),sess=s._placementSession;if(!sess)return placement();const ex=sess.items[index];if(!ex){const result=L.scorePlacement(sess,sess.answers||[]);s.placement=result;s.currentLevel=result.suggestedLevel;saveLearning(s);return open(head("Placement Result",result.suggestedLevel,"پیشنهاد سطح بر اساس شواهد این آزمون")+'<div class="r11-box">'+Object.entries(result.skillScores).map(([k,v])=>'<span class="r11-chip">'+h(k)+' '+v+'%</span>').join("")+'<br><small>'+h(result.note)+'</small></div>');}
-    activeItem=ex;open(head("Placement "+(index+1)+"/"+sess.items.length,ex.level,ex.type)+'<div class="r11-box">'+(ex.context?'<div dir="ltr">'+h(ex.context)+'</div>':'')+'<b>'+h(ex.prompt)+'</b></div>'+(ex.type==="dictation"?'<button class="secondary-button" style="margin-top:8px" data-r11="play-exercise">🔊 پخش</button>':'')+'<input id="r11-placement-answer" class="r11-input" style="margin-top:8px"><button class="primary-button" style="margin-top:8px" data-r11="placement-answer" data-index="'+index+'">ثبت و بعدی</button>');
+    let s=learning(),sess=s._placementSession;if(!sess)return placement();const ex=sess.items[index];if(!ex){const result=L.scorePlacement(sess,sess.answers||[]);s.placement=result;s.currentLevel=result.suggestedLevel;s=L.clearResume(s);saveLearning(s);return open(head("Placement Result",result.suggestedLevel,"پیشنهاد سطح بر اساس شواهد این آزمون")+'<div class="r11-box">'+Object.entries(result.skillScores).map(([k,v])=>'<span class="r11-chip">'+h(k)+' '+v+'%</span>').join("")+'<br><small>'+h(result.note)+'</small></div>');}
+    s=L.setResume(s,{kind:"placement",id:sess.id,step:index,level:ex.level});saveLearning(s);activeItem=ex;open(head("Placement "+(index+1)+"/"+sess.items.length,ex.level,ex.type)+'<div class="r11-box">'+(ex.context?'<div dir="ltr">'+h(ex.context)+'</div>':'')+'<b>'+h(ex.prompt)+'</b></div>'+(ex.type==="dictation"?'<button class="secondary-button" style="margin-top:8px" data-r11="play-exercise">🔊 پخش</button>':'')+'<input id="r11-placement-answer" class="r11-input" style="margin-top:8px"><button class="primary-button" style="margin-top:8px" data-r11="placement-answer" data-index="'+index+'">ثبت و بعدی</button>');
+  }
+
+  function checkpoint(){
+    let s=learning(),sess=L.buildQuizSession(s,{level:s.currentLevel,count:12});s._quizSession=sess;s._quizAnswers=[];s=L.setResume(s,{kind:"quiz",id:sess.id,step:0,level:sess.level});saveLearning(s);activeQuizIndex=0;quizQuestion(0);
+  }
+  function quizQuestion(index){
+    let s=learning(),sess=s._quizSession;if(!sess)return checkpoint();const ex=sess.items[index];
+    if(!ex){
+      const result=L.scoreQuizSession(sess,s._quizAnswers||[]);s.lastQuiz=result;s=L.clearResume(s);saveLearning(s);
+      return open(head("Checkpoint Result",result.level,result.pass?"PASS":"نیاز به مرور")+'<div class="r11-kpis"><div class="r11-kpi"><b>'+result.overall+'%</b><span>Overall</span></div><div class="r11-kpi"><b>'+(result.pass?"PASS":"REVIEW")+'</b><span>Gate</span></div></div><div class="r11-box" style="margin-top:9px">'+Object.entries(result.skillScores).map(([k,v])=>'<span class="r11-chip">'+h(k)+' '+v+'%</span>').join("")+'<br><small>'+h(result.note)+'</small></div>');
+    }
+    activeQuizIndex=index;activeItem=ex;s=L.setResume(s,{kind:"quiz",id:sess.id,step:index,level:sess.level});saveLearning(s);
+    let body=head("Checkpoint "+(index+1)+"/"+sess.items.length,ex.level,ex.type)+'<div class="r11-box">'+(ex.context?'<div dir="ltr">'+h(ex.context)+'</div>':'')+'<b>'+h(ex.prompt)+'</b></div>';
+    if(ex.type==="dictation")body+='<button class="secondary-button" style="margin-top:8px" data-r11="play-exercise">🔊 پخش</button>';
+    if(ex.answer==="free")body+='<textarea id="r11-quiz-answer" class="r11-textarea" placeholder="پاسخ آزاد…"></textarea><div class="r11-toolbar"><button data-r11="quiz-manual" data-score="60">نیاز به کار</button><button data-r11="quiz-manual" data-score="75">قابل قبول</button><button data-r11="quiz-manual" data-score="90">قوی</button></div>';
+    else if(Array.isArray(ex.options)&&ex.options.length)body+=ex.options.map(o=>'<button class="r10-option" data-r11="quiz-objective" data-value="'+encodeURIComponent(o)+'">'+h(o)+'</button>').join("");
+    else body+='<input id="r11-quiz-answer" class="r11-input" style="margin-top:8px"><button class="primary-button" style="margin-top:8px" data-r11="quiz-check">ثبت و بعدی</button>';
+    open(body);
+  }
+  function saveQuizAnswer(payload){
+    let s=learning(),sess=s._quizSession;if(!sess||!sess.items[activeQuizIndex])return;const answers=Array.isArray(s._quizAnswers)?s._quizAnswers:[];answers[activeQuizIndex]=payload;s._quizAnswers=answers;saveLearning(s);quizQuestion(activeQuizIndex+1);
+  }
+  function resumeLearning(){
+    const s=learning(),r=s.resume;if(!r||!r.kind)return learningHub();
+    if(r.kind==="exercise"&&r.id)return runExercise(r.id);
+    if(r.kind==="placement")return placementQuestion(r.step||0);
+    if(r.kind==="quiz")return quizQuestion(r.step||0);
+    if(r.kind==="daily-plan")return dailyPlan();
+    learningHub();
   }
 
   function classroomHub(){
@@ -193,8 +224,8 @@
 
   document.addEventListener("click",e=>{
     const t=e.target.closest("[data-r11]");if(!t)return;const a=t.dataset.r11;
-    if(a==="close")close();else if(a==="hub")hub();else if(a==="learning")learningHub();else if(a==="daily-plan")dailyPlan();else if(a==="rebuild-plan"){let s=learning();s.dailyMinutes=Number(document.getElementById("r11-minutes")?.value)||25;s.currentLevel=document.getElementById("r11-plan-level")?.value||s.currentLevel;saveLearning(s);dailyPlan();}else if(a==="plan-item")runExercise(t.dataset.id);else if(a==="objective-answer")scoreObjective(decodeURIComponent(t.dataset.value||""));else if(a==="check-objective")scoreObjective(document.getElementById("r11-answer")?.value||"");else if(a==="free-score"){let s=learning();s=L.recordAttempt(s,activeItem,Number(t.dataset.score)||70,{answer:document.getElementById("r11-answer")?.value||"",confidence:Number(t.dataset.score)||70,transfer:true});saveLearning(s);document.getElementById("r11-result").innerHTML='<div class="r11-box" style="margin-top:8px">✅ تلاش و Self-rating ثبت شد.</div>';}else if(a==="play-exercise"&&activeItem?.audioText){native("speak",activeItem.audioText);}else if(a==="rescue"){const key="rescue_"+activeItem.id,n=(Number(sessionStorage.getItem(key))||0)+1;sessionStorage.setItem(key,n);const r=L.rescueFor(activeItem,n),el=document.getElementById("r11-rescue");if(el)el.innerHTML='<div class="r11-box" style="margin-top:8px">'+h(r.text)+'</div>';}
-    else if(a==="skill-model")skillModel();else if(a==="error-bank")errorBank();else if(a==="retry-error")runExercise(t.dataset.id);else if(a==="mastery")mastery();else if(a==="unknown")unknown();else if(a==="missions")missions();else if(a==="immersion")immersion();else if(a==="placement")placement();else if(a==="placement-start")placementQuestion(0);else if(a==="placement-answer"){let s=learning(),sess=s._placementSession,idx=Number(t.dataset.index),ex=sess.items[idx],score=ex.answer==="free"?70:E.compare(document.getElementById("r11-placement-answer")?.value||"",ex.answer);sess.answers=sess.answers||[];sess.answers[idx]={score};s._placementSession=sess;saveLearning(s);placementQuestion(idx+1);}
+    if(a==="close")close();else if(a==="hub")hub();else if(a==="learning")learningHub();else if(a==="resume-learning")resumeLearning();else if(a==="daily-plan")dailyPlan();else if(a==="checkpoint")checkpoint();else if(a==="rebuild-plan"){let s=learning();s.dailyMinutes=Number(document.getElementById("r11-minutes")?.value)||25;s.currentLevel=document.getElementById("r11-plan-level")?.value||s.currentLevel;saveLearning(s);dailyPlan();}else if(a==="plan-item")runExercise(t.dataset.id);else if(a==="objective-answer")scoreObjective(decodeURIComponent(t.dataset.value||""));else if(a==="check-objective")scoreObjective(document.getElementById("r11-answer")?.value||"");else if(a==="free-score"){let s=learning();s=L.recordAttempt(s,activeItem,Number(t.dataset.score)||70,{answer:document.getElementById("r11-answer")?.value||"",confidence:Number(t.dataset.score)||70,transfer:true});s=L.clearResume(s);saveLearning(s);document.getElementById("r11-result").innerHTML='<div class="r11-box" style="margin-top:8px">✅ تلاش و Self-rating ثبت شد.</div>';}else if(a==="play-exercise"&&activeItem?.audioText){native("speak",activeItem.audioText);}else if(a==="rescue"){const key="rescue_"+activeItem.id,n=(Number(sessionStorage.getItem(key))||0)+1;sessionStorage.setItem(key,n);const r=L.rescueFor(activeItem,n),el=document.getElementById("r11-rescue");if(el)el.innerHTML='<div class="r11-box" style="margin-top:8px">'+h(r.text)+'</div>';}
+    else if(a==="quiz-objective")saveQuizAnswer({answer:decodeURIComponent(t.dataset.value||"")});else if(a==="quiz-check")saveQuizAnswer({answer:document.getElementById("r11-quiz-answer")?.value||""});else if(a==="quiz-manual")saveQuizAnswer({answer:document.getElementById("r11-quiz-answer")?.value||"",score:Number(t.dataset.score)||70});else if(a==="skill-model")skillModel();else if(a==="error-bank")errorBank();else if(a==="retry-error")runExercise(t.dataset.id);else if(a==="mastery")mastery();else if(a==="unknown")unknown();else if(a==="missions")missions();else if(a==="immersion")immersion();else if(a==="placement")placement();else if(a==="placement-start")placementQuestion(0);else if(a==="placement-answer"){let s=learning(),sess=s._placementSession,idx=Number(t.dataset.index),ex=sess.items[idx],score=ex.answer==="free"?70:E.compare(document.getElementById("r11-placement-answer")?.value||"",ex.answer);sess.answers=sess.answers||[];sess.answers[idx]={score};s._placementSession=sess;saveLearning(s);placementQuestion(idx+1);}
     else if(a==="classroom")classroomHub();else if(a==="assignment-builder")assignmentBuilder();else if(a==="create-enhanced-assignment")createEnhancedAssignment();else if(a==="review-submissions")reviewSubmissions();else if(a==="grade-submission")gradeSubmission(t.dataset.id);else if(a==="save-grade")saveGrade();else if(a==="class-report")classReport();else if(a==="export-class-pdf"){const s=platform();try{native("exportProgressPdf",JSON.stringify(CC.reportPayload(s,selectedClass)));}catch(_){toast("خروجی PDF در دسترس نیست");}}else if(a==="announcements")announcements();else if(a==="save-announcement"){let s=platform(),p=activeProfile();try{s=CC.addAnnouncement(s,{teacherId:p.id,classId:document.getElementById("r11-ann-class")?.value,title:document.getElementById("r11-ann-title")?.value,body:document.getElementById("r11-ann-body")?.value});savePlatform(s);toast("اعلان ذخیره شد");teacherHome(s,p);}catch(err){toast("خطا: "+err.message);}}
     else if(a==="student-assignment")studentAssignment(t.dataset.id);else if(a==="assignment-item")assignmentItem(t.dataset.id);else if(a==="mark-class-item")updateStudentItem({completed:true,score:100});else if(a==="play-class-exercise"){const ex=E.exercises.find(x=>x.id===activeItem.refId);if(ex?.audioText)native("speak",ex.audioText);}else if(a==="check-class-exercise"){const ex=E.exercises.find(x=>x.id===activeItem.refId);if(ex){const value=document.getElementById("r11-class-answer")?.value||"",score=E.compare(value,ex.answer);updateStudentItem({text:value,score,completed:score>=60});}}else if(a==="save-class-writing")updateStudentItem({text:document.getElementById("r11-class-writing")?.value||"",completed:true});else if(a==="start-class-speaking"){speechTarget="class-speaking";native("startSpeechRecognition","Speaking assignment");}else if(a==="submit-enhanced-assignment"){let s=platform(),p=activeProfile();try{s=CC.submitAssignment(s,{studentId:p.id,assignmentId:activeAssignment.id});savePlatform(s);toast("تکلیف تحویل شد");studentHome(s,p);}catch(err){toast(err.message==="required_items_incomplete"?"همه بخش‌های اجباری را کامل کن":"خطا در تحویل");}}
   });
