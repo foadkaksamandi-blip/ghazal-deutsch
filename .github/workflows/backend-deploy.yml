@@ -24,9 +24,6 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      GHAZAL_TOKEN_SECRET: ${{ secrets.GHAZAL_TOKEN_SECRET }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v5
 
@@ -39,16 +36,12 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID DATABASE_URL GHAZAL_TOKEN_SECRET; do
+          for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             if [ -z "${!key:-}" ]; then missing+=("$key"); fi
           done
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error title=Missing Stage 2 deployment secrets::${missing[*]}"
             exit 2
-          fi
-          if [ "${#GHAZAL_TOKEN_SECRET}" -lt 32 ]; then
-            echo "::error title=Invalid GHAZAL_TOKEN_SECRET::Must be at least 32 characters"
-            exit 3
           fi
 
       - name: Install dependencies
@@ -57,14 +50,25 @@ jobs:
       - name: Backend contract tests
         run: npm run backend:test
 
-      - name: Run PostgreSQL migration
-        run: npm run backend:migrate
-
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@48.1.6
 
       - name: Link production project
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Validate Vercel production runtime variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          vercel env run -e production --token="$VERCEL_TOKEN" -- node -e '
+            const missing=["DATABASE_URL","GHAZAL_TOKEN_SECRET"].filter(k=>!process.env[k]);
+            if(missing.length){console.error("Missing Vercel production vars: "+missing.join(" "));process.exit(2)}
+            if(process.env.GHAZAL_TOKEN_SECRET.length<32){console.error("GHAZAL_TOKEN_SECRET must be at least 32 chars");process.exit(3)}
+            console.log("Required Vercel production runtime variables are present.");
+          '
+
+      - name: Run PostgreSQL migration
+        run: vercel env run -e production --token="$VERCEL_TOKEN" -- npm run backend:migrate
 
       - name: Build production backend
         run: vercel build --prod --token="$VERCEL_TOKEN"
