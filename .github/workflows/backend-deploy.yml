@@ -118,7 +118,7 @@ jobs:
         run: |
           {
             echo "## GHAZAL Stage 2 backend deployment"
-            echo "- Commit: `$GITHUB_SHA`"
+            echo "- Commit: $GITHUB_SHA"
             echo "- Production URL: ${{ steps.deploy.outputs.url || 'not-deployed' }}"
             echo "- Database migration: attempted before deploy"
             echo "- Live health/auth/sync smoke: see job result"
