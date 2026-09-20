@@ -1,0 +1,121 @@
+name: Stage 2 Live Backend Deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'api/**'
+      - 'vercel.json'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghazal-backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GHAZAL_TOKEN_SECRET: ${{ secrets.GHAZAL_TOKEN_SECRET }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Validate required deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID DATABASE_URL GHAZAL_TOKEN_SECRET; do
+            if [ -z "${!key:-}" ]; then missing+=("$key"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error title=Missing Stage 2 deployment secrets::${missing[*]}"
+            exit 2
+          fi
+          if [ "${#GHAZAL_TOKEN_SECRET}" -lt 32 ]; then
+            echo "::error title=Invalid GHAZAL_TOKEN_SECRET::Must be at least 32 characters"
+            exit 3
+          fi
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Backend contract tests
+        run: npm run backend:test
+
+      - name: Run PostgreSQL migration
+        run: npm run backend:migrate
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@48.1.6
+
+      - name: Link production project
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build production backend
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy production backend
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Production URL: $url"
+
+      - name: Live health smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${{ steps.deploy.outputs.url }}"
+          for i in {1..12}; do
+            body="$(curl -fsS --max-time 10 "$url/healthz" || true)"
+            if echo "$body" | grep -q '"ok":true' && echo "$body" | grep -q '"database":true'; then
+              echo "$body"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error title=Backend health smoke failed::/healthz did not report ok=true and database=true"
+          exit 4
+
+      - name: Live auth + sync smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${{ steps.deploy.outputs.url }}"
+          suffix="$(date +%s)-$RANDOM"
+          email="stage2-smoke-$suffix@example.invalid"
+          password="SmokeTest-$suffix-Aa!"
+          reg="$(curl -fsS --max-time 15 -X POST "$url/v1/auth/register"             -H 'content-type: application/json'             -d "{"email":"$email","password":"$password","displayName":"Stage2 Smoke","role":"student","deviceId":"github-actions"}")"
+          token="$(node -e 'const d=JSON.parse(process.argv[1]); if(!d.accessToken) process.exit(1); process.stdout.write(d.accessToken)' "$reg")"
+          sync="$(curl -fsS --max-time 15 -X POST "$url/v1/progress/sync"             -H "authorization: Bearer $token"             -H 'content-type: application/json'             -H "x-idempotency-key: stage2-$suffix"             -d '{"profileId":"stage2-smoke","baseVersion":0,"data":{"xp":1,"source":"production-smoke"},"deviceId":"github-actions"}')"
+          node -e 'const d=JSON.parse(process.argv[1]); if(d.conflict!==false || d.server?.version!==1) process.exit(1)' "$sync"
+          echo "Live register + authenticated sync smoke passed."
+
+      - name: Deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## GHAZAL Stage 2 backend deployment"
+            echo "- Commit: `$GITHUB_SHA`"
+            echo "- Production URL: `${{ steps.deploy.outputs.url || 'not-deployed' }}`"
+            echo "- Database migration: attempted before deploy"
+            echo "- Live health/auth/sync smoke: see job result"
+          } >> "$GITHUB_STEP_SUMMARY"
