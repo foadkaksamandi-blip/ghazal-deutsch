@@ -133,7 +133,7 @@ test('locked Stage 2 UI exposes resume, checkpoint and persistent adaptive flows
 });
 
 
-test('locked Stage 2 UI has Persian-first navigation and close returns within the learning flow',()=>{
+test('locked Stage 2 UI has Persian-first navigation and explicit in-flow back',()=>{
   const root=path.join(__dirname,'..');
   const ui=fs.readFileSync(path.join(root,'app/src/main/assets/release11-stage34-ui.js'),'utf8');
   for(const token of [
@@ -143,10 +143,11 @@ test('locked Stage 2 UI has Persian-first navigation and close returns within th
     'بانک اشتباه‌ها',
     'شرط عبور از سطح',
     'تعیین سطح',
-    'ساخت برنامه با این تنظیمات'
+    'ساخت برنامه با این تنظیمات',
+    'back-learning',
+    '‹ برگشت'
   ]) assert.ok(ui.includes(token),token);
-  assert.ok(ui.includes('if(learningScreen&&learningScreen!=="root"&&learningScreen!=="hub"){return learningHub();}'));
-  assert.ok(ui.includes('if(learningScreen==="hub"){return hub();}'));
+  assert.ok(ui.includes('else if(a==="back-learning")learningHub()'));
   assert.ok(ui.includes('insertAdjacentHTML("afterbegin"'));
   assert.ok(ui.includes('data-r11="learning"'));
 });
@@ -159,7 +160,7 @@ test('locked Stage 2 phone flow stays Persian-first and uses explicit back navig
   for(const token of [
     'function typeFa',
     'function reasonFa',
-    'data-r11="back-learning"',
+    'back-learning',
     'ادامه آخرین فعالیت',
     'ورود مستقیم به آزمون آفلاین سطح فعلی',
     'یادآوری',
