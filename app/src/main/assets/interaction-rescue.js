@@ -230,6 +230,13 @@
       event.stopImmediatePropagation();
       return;
     }
+    if(isCloseTarget(target)){
+      // Close controls are allowed through even during an existing barrier, but
+      // once a close gesture is accepted we immediately shield the controls
+      // underneath from the delayed WebView/native tail of the same gesture.
+      nativeSuppressedUntil=Math.max(nativeSuppressedUntil,t+420);
+      native("recordUiInteraction","close-barrier:"+descriptor(target));
+    }
     lastBrowserActivationAt=t;
     lastBrowserTarget=target;
     normalCount++;
