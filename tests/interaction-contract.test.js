@@ -122,3 +122,11 @@ test('close controls bypass ghost-tap suppression without reopening general touc
   assert.ok(!rescue.includes('deferredTouch(event.target,"touchend")'));
   assert.ok(!rescue.includes('deferredTouch(event.target,"pointerup")'));
 });
+
+
+test('close barrier is armed before DOM removal to prevent reopen click-through',()=>{
+  const rescue=read('interaction-rescue.js');
+  assert.ok(rescue.includes('nativeSuppressedUntil=Math.max(nativeSuppressedUntil,t+420)'));
+     const marker='close-barrier:';
+  assert.ok(rescue.includes(marker));
+});
