@@ -150,3 +150,23 @@ test('locked Stage 2 UI has Persian-first navigation and close returns within th
   assert.ok(ui.includes('insertAdjacentHTML("afterbegin"'));
   assert.ok(ui.includes('data-r11="learning"'));
 });
+
+
+test('locked Stage 2 phone flow stays Persian-first and uses explicit back navigation',()=>{
+  const root=path.join(__dirname,'..');
+  const ui=fs.readFileSync(path.join(root,'app/src/main/assets/release11-stage34-ui.js'),'utf8');
+  const css=fs.readFileSync(path.join(root,'app/src/main/assets/release11-stage34.css'),'utf8');
+  for(const token of [
+    'function typeFa',
+    'function reasonFa',
+    'data-r11="back-learning"',
+    'ادامه آخرین فعالیت',
+    'ورود مستقیم به آزمون آفلاین سطح فعلی',
+    'یادآوری',
+    'معنی واژه',
+    'جای خالی'
+  ]) assert.ok(ui.includes(token),token);
+  assert.ok(css.includes('.r11-back-button'));
+  assert.ok(ui.includes('else if(a==="back-learning")learningHub()'));
+  assert.ok(!ui.includes("'+h(x.exercise.type)+' · '"));
+});
