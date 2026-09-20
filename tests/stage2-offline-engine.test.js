@@ -131,3 +131,22 @@ test('locked Stage 2 UI exposes resume, checkpoint and persistent adaptive flows
     'r11-quiz-answer'
   ]) assert.ok(ui.includes(token),token);
 });
+
+
+test('locked Stage 2 UI has Persian-first navigation and close returns within the learning flow',()=>{
+  const root=path.join(__dirname,'..');
+  const ui=fs.readFileSync(path.join(root,'app/src/main/assets/release11-stage34-ui.js'),'utf8');
+  for(const token of [
+    'مرحله ۲ · موتور یادگیری آفلاین',
+    'آزمون مرحله‌ای',
+    'وضعیت مهارت‌ها',
+    'بانک اشتباه‌ها',
+    'شرط عبور از سطح',
+    'تعیین سطح',
+    'ساخت برنامه با این تنظیمات'
+  ]) assert.ok(ui.includes(token),token);
+  assert.ok(ui.includes('if(learningScreen&&learningScreen!=="root"&&learningScreen!=="hub"){return learningHub();}'));
+  assert.ok(ui.includes('if(learningScreen==="hub"){return hub();}'));
+  assert.ok(ui.includes('insertAdjacentHTML("afterbegin"'));
+  assert.ok(ui.includes('data-r11="learning"'));
+});
