@@ -111,3 +111,14 @@ test('native rescue requires deliberate tap timing and normal Android touch slop
   assert.ok(main.includes('elapsed >= 55L && elapsed <= 650L'));
   assert.ok(main.includes('}, 180L);'));
 });
+
+
+test('close controls bypass ghost-tap suppression without reopening general touch synthesis',()=>{
+  const rescue=read('interaction-rescue.js');
+  assert.ok(rescue.includes('function isCloseTarget(target)'));
+  assert.ok(rescue.includes('target.dataset.action==="close-modal"'));
+  assert.ok(rescue.includes('t<nativeSuppressedUntil&&!isCloseTarget(target)'));
+  assert.ok(rescue.includes('now()<nativeSuppressedUntil&&!isCloseTarget(immediateLiveTarget)'));
+  assert.ok(!rescue.includes('deferredTouch(event.target,"touchend")'));
+  assert.ok(!rescue.includes('deferredTouch(event.target,"pointerup")'));
+});
