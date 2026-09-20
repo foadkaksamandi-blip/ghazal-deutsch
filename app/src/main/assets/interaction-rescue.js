@@ -162,8 +162,9 @@
       lastPhysicalTargetAt=0;
       recent=null;
     }
-    const coordinateTarget=candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
-    const target=coordinateTarget||interactive(recent);
+    const liveTarget=candidateFromPoint(lastNativeX,lastNativeY);
+    const cachedTarget=liveTarget?null:candidateFromCachedMap(lastNativeX,lastNativeY);
+    const target=liveTarget||cachedTarget||interactive(recent);
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
