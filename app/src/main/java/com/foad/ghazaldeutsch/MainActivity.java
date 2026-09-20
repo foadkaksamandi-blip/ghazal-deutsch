@@ -27,6 +27,7 @@ import android.speech.tts.TextToSpeech;
 import android.util.Base64;
 import android.view.View;
 import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
@@ -205,7 +206,7 @@ public class MainActivity extends FragmentActivity {
 
     @SuppressLint("ClickableViewAccessibility")
     private void installNativeTouchRescue() {
-        final float slop = 18f * getResources().getDisplayMetrics().density;
+        final float slop = ViewConfiguration.get(this).getScaledTouchSlop();
         webView.setOnTouchListener((view, event) -> {
             if (event == null) return false;
             switch (event.getActionMasked()) {
@@ -224,15 +225,15 @@ public class MainActivity extends FragmentActivity {
                     rescueMoved = true;
                     break;
                 case MotionEvent.ACTION_UP:
-                    long elapsed = System.currentTimeMillis() - rescueDownAt;
-                    if (!rescueMoved && elapsed >= 0L && elapsed <= 900L) {
+                    long elapsed = Math.max(0L, event.getEventTime() - event.getDownTime());
+                    if (!rescueMoved && elapsed >= 55L && elapsed <= 650L) {
                         final float x = event.getX();
                         final float y = event.getY();
                         webView.postDelayed(() -> {
                             if (webView == null) return;
                             String js = "(function(){try{if(window.GhazalInteractionRescue&&typeof window.GhazalInteractionRescue.nativeTap==='function'){window.GhazalInteractionRescue.nativeTap(" + x + "," + y + ");}}catch(e){}})();";
                             webView.evaluateJavascript(js, null);
-                        }, 135L);
+                        }, 180L);
                     }
                     break;
                 default:

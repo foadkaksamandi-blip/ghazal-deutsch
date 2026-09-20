@@ -38,6 +38,14 @@
     return target;
   }
   function same(a,b){return !!a&&!!b&&(a===b||a.contains(b)||b.contains(a));}
+  function isCloseTarget(target){
+    if(!target||!target.dataset)return false;
+    if(target.dataset.action==="close-modal")return true;
+    for(const key of ["r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"]){
+      if(target.dataset[key]==="close")return true;
+    }
+    return false;
+  }
   function uidFor(target){
     if(!target)return "";
     if(!target.dataset.ghzControlId)target.dataset.ghzControlId="ghz-"+(++uidCounter);
@@ -151,16 +159,21 @@
   function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
-    if(now()<nativeSuppressedUntil){
+    const immediateLiveTarget=candidateFromPoint(lastNativeX,lastNativeY);
+    if(now()<nativeSuppressedUntil&&!isCloseTarget(immediateLiveTarget)){
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
     }
-    const recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
+    let recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
     if(recent&&!recent.isConnected){
-      native("recordUiInteraction","native-skip:detached-physical-target");
-      return false;
+      native("recordUiInteraction","native-clear:detached-physical-target");
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      recent=null;
     }
-    const target=interactive(recent)||candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
+    const liveTarget=immediateLiveTarget||candidateFromPoint(lastNativeX,lastNativeY);
+    const cachedTarget=liveTarget?null:candidateFromCachedMap(lastNativeX,lastNativeY);
+    const target=liveTarget||cachedTarget||interactive(recent);
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
@@ -172,16 +185,6 @@
     },70);
     return true;
   }
-  function deferredTouch(target,source){
-    target=interactive(target);
-    if(!target)return;
-    const observedClickAt=lastBrowserActivationAt;
-    setTimeout(()=>{
-      if(lastBrowserActivationAt!==observedClickAt&&same(lastBrowserTarget,target))return;
-      clickElement(target,source);
-    },85);
-  }
-
   let publishTimer=0;
   function buildMap(){
     const rows=[];
@@ -216,10 +219,23 @@
     const target=interactive(event.target);
     if(!target)return;
     const t=now();
+    if(event.isTrusted&&t<nativeSuppressedUntil&&!isCloseTarget(target)){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      native("recordUiInteraction","browser-skip:dom-transition");
+      return;
+    }
     if(event.isTrusted&&same(lastRescueTarget,target)&&t-lastRescueAt<360){
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
+    }
+    if(isCloseTarget(target)){
+      // Close controls are allowed through even during an existing barrier, but
+      // once a close gesture is accepted we immediately shield the controls
+      // underneath from the delayed WebView/native tail of the same gesture.
+      nativeSuppressedUntil=Math.max(nativeSuppressedUntil,t+420);
+      native("recordUiInteraction","close-barrier:"+descriptor(target));
     }
     lastBrowserActivationAt=t;
     lastBrowserTarget=target;
@@ -230,7 +246,13 @@
     // the delayed Android fallback so the same physical gesture cannot leak
     // through to a newly exposed control underneath.
     queueMicrotask(()=>{
-      if(!target.isConnected)nativeSuppressedUntil=Math.max(nativeSuppressedUntil,now()+280);
+      if(!target.isConnected){
+        nativeSuppressedUntil=Math.max(nativeSuppressedUntil,now()+280);
+        if(same(lastPhysicalTarget,target)){
+          lastPhysicalTarget=null;
+          lastPhysicalTargetAt=0;
+        }
+      }
     });
   },true);
 
@@ -243,19 +265,9 @@
     rememberPhysicalTarget(event.target);
   },true);
 
-  document.addEventListener("touchend",event=>{
-    const touch=event.changedTouches&&event.changedTouches[0];
-    if(!touch)return;
-    rememberPhysicalTarget(event.target);
-    deferredTouch(event.target,"touchend");
-  },true);
-
-  document.addEventListener("pointerup",event=>{
-    if(event.pointerType&&event.pointerType!=="touch"&&event.pointerType!=="pen")return;
-    rememberPhysicalTarget(event.target);
-    deferredTouch(event.target,"pointerup");
-  },true);
-
+  // Do not synthesize clicks from touchend/pointerup. Android/WebView already
+  // generates the normal click for a deliberate tap. The native rescue below
+  // is delayed and only acts when that browser click did not happen.
   document.addEventListener("keydown",event=>{
     if(event.key!=="Enter"&&event.key!==" ")return;
     const target=interactive(event.target);
@@ -268,7 +280,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.3.0",
+    VERSION:"2.4.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),

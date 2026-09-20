@@ -6,6 +6,5 @@ button,[role="button"],[data-action],[data-nav],[data-os-action],
   touch-action: manipulation;
 }
 .ghz-touch-ack{
-  transform: translateY(1px);
-  filter: brightness(1.08);
+  filter: brightness(1.04);
 }
