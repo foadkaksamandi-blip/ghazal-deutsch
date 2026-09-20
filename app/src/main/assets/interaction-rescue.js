@@ -155,10 +155,12 @@
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
     }
-    const recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
+    let recent=lastPhysicalTarget&&now()-lastPhysicalTargetAt<1200?lastPhysicalTarget:null;
     if(recent&&!recent.isConnected){
-      native("recordUiInteraction","native-skip:detached-physical-target");
-      return false;
+      native("recordUiInteraction","native-clear:detached-physical-target");
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      recent=null;
     }
     const target=interactive(recent)||candidateFromCachedMap(lastNativeX,lastNativeY)||candidateFromPoint(lastNativeX,lastNativeY);
     if(!target){
@@ -220,7 +222,13 @@
     // the delayed Android fallback so the same physical gesture cannot leak
     // through to a newly exposed control underneath.
     queueMicrotask(()=>{
-      if(!target.isConnected)nativeSuppressedUntil=Math.max(nativeSuppressedUntil,now()+280);
+      if(!target.isConnected){
+        nativeSuppressedUntil=Math.max(nativeSuppressedUntil,now()+280);
+        if(same(lastPhysicalTarget,target)){
+          lastPhysicalTarget=null;
+          lastPhysicalTargetAt=0;
+        }
+      }
     });
   },true);
 
