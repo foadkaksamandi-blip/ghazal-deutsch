@@ -214,11 +214,27 @@ public class InteractionInstrumentedTest {
         waitFor("(function(){var e=document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer');return !!e&&e.value==='GHAZAL-DRAFT-42';})()", "restored Stage 2 draft");
 
         physicalTap("[data-r11='back-learning']");
-        waitFor("!!document.querySelector('[data-r11=\"checkpoint\"]')", "checkpoint on Stage 2 hub");
-        physicalTap("[data-r11='checkpoint']");
-        waitFor("document.body.innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "Stage 2 checkpoint first question");
+        waitFor("!!document.querySelector('#modal-content [data-r11=\"checkpoint\"]')", "checkpoint on Stage 2 hub");
+        physicalTap("#modal-content [data-r11='checkpoint']");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "Stage 2 checkpoint first question");
         assertTrue("Checkpoint did not render a Stage 2 back button",
                 evalBool("!!document.querySelector('[data-r11=\"back-learning\"]')"));
+    }
+
+
+    @Test
+    public void stage2DirectCheckpointShortcutOpensQuiz() throws Exception {
+        freshFirstRun();
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('#view [data-r11=\"checkpoint\"]')", "direct checkpoint shortcut");
+        physicalTap("#view [data-r11='checkpoint']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "direct checkpoint modal");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "direct checkpoint first question");
+        assertTrue("Direct checkpoint did not use explicit Stage 2 back navigation",
+                evalBool("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')"));
     }
 
 }
