@@ -68,7 +68,7 @@ test('interaction kernel covers every control namespace and loads before app rou
   for(const token of ['[data-action]','[data-nav]','[data-os-action]','[data-r3]','[data-r4]','[data-r5]','[data-r6]','[data-r7]','[data-r8]','[data-r9]','[data-r10]','[data-r11]','[data-r12]','[data-r13]','[data-r14]']){
     assert.ok(rescue.includes(token),token);
   }
-  assert.ok(rescue.includes('VERSION:"2.3.0"'));
+  assert.ok(rescue.includes('VERSION:"2.4.0"'));
   assert.ok(rescue.includes('candidateFromCachedMap'));
   assert.ok(rescue.includes('data-ghz-control-id'));
   assert.ok(rescue.includes('targetByUid'));
@@ -94,4 +94,20 @@ test('Android native touch rescue is installed and delegates failed taps into th
 test('physical-touch instrumentation covers onboarding navigation lesson modal and dynamic Stage 5/6 UI',()=>{
   const testFile=fs.readFileSync(path.join(ROOT,'app/src/androidTest/java/com/foad/ghazaldeutsch/InteractionInstrumentedTest.java'),'utf8');
   for(const token of ['dispatchTouchEvent',"[data-action='skip-placement']","[data-nav='path']","[data-nav='practice']","[data-nav='migration']","[data-nav='profile']","[data-action='open-lesson']","[data-r12='hub']"])assert.ok(testFile.includes(token),token);
+});
+
+
+test('interaction kernel does not synthesize hair-trigger touchend or pointerup clicks',()=>{
+  const rescue=read('interaction-rescue.js');
+  assert.ok(!rescue.includes('deferredTouch(event.target,"touchend")'));
+  assert.ok(!rescue.includes('deferredTouch(event.target,"pointerup")'));
+  const css=read('interaction-rescue.css');
+  assert.ok(!css.includes('transform: translateY'));
+});
+
+test('native rescue requires deliberate tap timing and normal Android touch slop',()=>{
+  const main=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
+  assert.ok(main.includes('ViewConfiguration.get(this).getScaledTouchSlop()'));
+  assert.ok(main.includes('elapsed >= 55L && elapsed <= 650L'));
+  assert.ok(main.includes('}, 180L);'));
 });
