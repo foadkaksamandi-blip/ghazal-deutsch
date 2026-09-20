@@ -172,16 +172,6 @@
     },70);
     return true;
   }
-  function deferredTouch(target,source){
-    target=interactive(target);
-    if(!target)return;
-    const observedClickAt=lastBrowserActivationAt;
-    setTimeout(()=>{
-      if(lastBrowserActivationAt!==observedClickAt&&same(lastBrowserTarget,target))return;
-      clickElement(target,source);
-    },85);
-  }
-
   let publishTimer=0;
   function buildMap(){
     const rows=[];
@@ -243,19 +233,9 @@
     rememberPhysicalTarget(event.target);
   },true);
 
-  document.addEventListener("touchend",event=>{
-    const touch=event.changedTouches&&event.changedTouches[0];
-    if(!touch)return;
-    rememberPhysicalTarget(event.target);
-    deferredTouch(event.target,"touchend");
-  },true);
-
-  document.addEventListener("pointerup",event=>{
-    if(event.pointerType&&event.pointerType!=="touch"&&event.pointerType!=="pen")return;
-    rememberPhysicalTarget(event.target);
-    deferredTouch(event.target,"pointerup");
-  },true);
-
+  // Do not synthesize clicks from touchend/pointerup. Android/WebView already
+  // generates the normal click for a deliberate tap. The native rescue below
+  // is delayed and only acts when that browser click did not happen.
   document.addEventListener("keydown",event=>{
     if(event.key!=="Enter"&&event.key!==" ")return;
     const target=interactive(event.target);
@@ -268,7 +248,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.3.0",
+    VERSION:"2.4.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
