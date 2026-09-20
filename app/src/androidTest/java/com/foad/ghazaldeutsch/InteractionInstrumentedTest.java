@@ -175,4 +175,50 @@ public class InteractionInstrumentedTest {
         assertTrue("No browser/rescue interactions were observed",
                 evalBool("window.GhazalInteractionRescue.diagnostics().normalCount + window.GhazalInteractionRescue.diagnostics().rescueCount >= 8"));
     }
+
+    @Test
+    public void stage2PhoneFlowPersistsDraftAndExposesDirectQuiz() throws Exception {
+        freshFirstRun();
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('[data-r11=\"learning\"]')", "Stage 2 direct entry");
+        physicalTap("[data-r11='learning']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 2 modal");
+        waitFor("document.body.innerText.indexOf('موتور یادگیری آفلاین')>=0", "Stage 2 hub text");
+        waitFor("!!document.querySelector('[data-r11=\"daily-plan\"]')", "daily plan button");
+
+        physicalTap("[data-r11='daily-plan']");
+        waitFor("!!document.querySelector('[data-r11=\"plan-item\"]')", "daily plan items");
+        assertTrue("Daily-plan labels still expose raw English exercise types",
+                evalBool("document.getElementById('modal-content').innerText.indexOf('یادآوری')>=0 || document.getElementById('modal-content').innerText.indexOf('معنی واژه')>=0 || document.getElementById('modal-content').innerText.indexOf('جای خالی')>=0"));
+
+        physicalTap("[data-r11='plan-item']");
+        waitFor("!!document.querySelector('[data-r11=\"back-learning\"]')", "explicit Stage 2 back button");
+        waitFor("!!document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer')", "editable Stage 2 answer");
+        eval("(function(){var e=document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer');if(!e)return false;e.value='GHAZAL-DRAFT-42';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
+        waitFor("(function(){try{var keys=Object.keys(localStorage).filter(k=>k.indexOf('ghazal_learning_v2_')===0);if(!keys.length)return false;var s=JSON.parse(localStorage.getItem(keys[0])||'{}');return s.resume&&s.resume.payload&&s.resume.payload.draft==='GHAZAL-DRAFT-42';}catch(e){return false;}})()", "persisted Stage 2 draft");
+
+        // Simulate a real app/webview reload. Local storage must survive.
+        eval("location.reload()");
+        SystemClock.sleep(500L);
+        waitFor("document.readyState==='complete'", "Stage 2 reload complete");
+        waitFor("document.documentElement.getAttribute('data-ghz-interaction-ready')==='2'", "interaction kernel after reload");
+        waitFor("!!document.querySelector('[data-nav=\"practice\"]')", "main navigation after reload");
+
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('[data-r11=\"resume-learning\"]')", "direct resume shortcut after reload");
+        physicalTap("[data-r11='resume-learning']");
+        waitFor("!!document.querySelector('[data-r11=\"back-learning\"]')", "resumed Stage 2 exercise");
+        waitFor("(function(){var e=document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer');return !!e&&e.value==='GHAZAL-DRAFT-42';})()", "restored Stage 2 draft");
+
+        physicalTap("[data-r11='back-learning']");
+        waitFor("!!document.querySelector('[data-r11=\"checkpoint\"]')", "checkpoint on Stage 2 hub");
+        physicalTap("[data-r11='checkpoint']");
+        waitFor("document.body.innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "Stage 2 checkpoint first question");
+        assertTrue("Checkpoint did not render a Stage 2 back button",
+                evalBool("!!document.querySelector('[data-r11=\"back-learning\"]')"));
+    }
+
 }
