@@ -208,6 +208,12 @@
     const target=interactive(event.target);
     if(!target)return;
     const t=now();
+    if(event.isTrusted&&t<nativeSuppressedUntil){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      native("recordUiInteraction","browser-skip:dom-transition");
+      return;
+    }
     if(event.isTrusted&&same(lastRescueTarget,target)&&t-lastRescueAt<360){
       event.preventDefault();
       event.stopImmediatePropagation();
