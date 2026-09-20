@@ -86,6 +86,21 @@ test('locked Stage 2 checkpoint quiz is real, scored and skill-aware',()=>{
   assert.equal(result.rows.length,12);
 });
 
+test('locked Stage 2 legacy SRS state migrates metadata without losing history',()=>{
+  const {learning,exercises}=load();
+  const ex=exercises.exercises.find(x=>x.level==='A2'&&x.type==='recall');
+  const raw=learning.initialState('legacy');
+  raw.schema=2;
+  raw.items[ex.id]={attempts:8,scores:[80,90],reps:3,lapses:1,ease:2.2,intervalDays:14,dueAt:new Date().toISOString(),mastery:88,confidence:80};
+  const n=learning.normalizeState(raw,'legacy');
+  assert.equal(n.schema,3);
+  assert.equal(n.items[ex.id].attempts,8);
+  assert.equal(n.items[ex.id].mastery,88);
+  assert.equal(n.items[ex.id].skill,'vocabulary');
+  assert.equal(n.items[ex.id].level,'A2');
+  assert.equal(n.items[ex.id].type,'recall');
+});
+
 test('locked Stage 2 exact resume survives normalization and clears explicitly',()=>{
   const {learning}=load();
   let s=learning.initialState('resume');
@@ -110,6 +125,9 @@ test('locked Stage 2 UI exposes resume, checkpoint and persistent adaptive flows
     'L.setResume',
     'L.clearResume',
     'buildQuizSession',
-    'scoreQuizSession'
+    'scoreQuizSession',
+    'function saveResumeDraft',
+    'r11-placement-answer',
+    'r11-quiz-answer'
   ]) assert.ok(ui.includes(token),token);
 });
