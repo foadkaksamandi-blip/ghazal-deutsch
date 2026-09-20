@@ -38,6 +38,14 @@
     return target;
   }
   function same(a,b){return !!a&&!!b&&(a===b||a.contains(b)||b.contains(a));}
+  function isCloseTarget(target){
+    if(!target||!target.dataset)return false;
+    if(target.dataset.action==="close-modal")return true;
+    for(const key of ["r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"]){
+      if(target.dataset[key]==="close")return true;
+    }
+    return false;
+  }
   function uidFor(target){
     if(!target)return "";
     if(!target.dataset.ghzControlId)target.dataset.ghzControlId="ghz-"+(++uidCounter);
@@ -151,7 +159,8 @@
   function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
-    if(now()<nativeSuppressedUntil){
+    const immediateLiveTarget=candidateFromPoint(lastNativeX,lastNativeY);
+    if(now()<nativeSuppressedUntil&&!isCloseTarget(immediateLiveTarget)){
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
     }
@@ -162,7 +171,7 @@
       lastPhysicalTargetAt=0;
       recent=null;
     }
-    const liveTarget=candidateFromPoint(lastNativeX,lastNativeY);
+    const liveTarget=immediateLiveTarget||candidateFromPoint(lastNativeX,lastNativeY);
     const cachedTarget=liveTarget?null:candidateFromCachedMap(lastNativeX,lastNativeY);
     const target=liveTarget||cachedTarget||interactive(recent);
     if(!target){
@@ -210,7 +219,7 @@
     const target=interactive(event.target);
     if(!target)return;
     const t=now();
-    if(event.isTrusted&&t<nativeSuppressedUntil){
+    if(event.isTrusted&&t<nativeSuppressedUntil&&!isCloseTarget(target)){
       event.preventDefault();
       event.stopImmediatePropagation();
       native("recordUiInteraction","browser-skip:dom-transition");
