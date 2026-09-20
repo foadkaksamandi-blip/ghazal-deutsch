@@ -19,7 +19,7 @@
   function mean(a){return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;}
   function initialState(profileId){
     const skills={};SKILLS.forEach(k=>skills[k]={attempts:0,total:0,avg:0,best:0,mastery:0,confidence:0,lastAt:null,streak:0});
-    return{schema:2,profileId:profileId||"local",currentLevel:"A1",dailyMinutes:25,skills,items:{},errors:{},vocabulary:{},grammar:{},history:[],missions:{},placement:null,lastPlan:null,createdAt:nowIso(),updatedAt:nowIso()};
+    return{schema:3,profileId:profileId||"local",currentLevel:"A1",dailyMinutes:25,skills,items:{},errors:{},vocabulary:{},grammar:{},history:[],missions:{},placement:null,lastPlan:null,resume:null,createdAt:nowIso(),updatedAt:nowIso()};
   }
   function normalizeState(raw,profileId){
     const b=initialState(profileId),r=raw&&typeof raw==="object"?raw:{},skills={...b.skills};
@@ -29,10 +29,11 @@
   function skillOf(ex){return TYPE_SKILL[ex&&ex.type]||"transfer";}
   function dueMs(item){return item&&item.dueAt?new Date(item.dueAt).getTime():0;}
   function itemState(s,id){return s.items[id]||{attempts:0,scores:[],reps:0,lapses:0,ease:2.3,intervalDays:0,dueAt:null,lastAt:null,mastery:0,confidence:0,transferPasses:0};}
-  function nextInterval(item,score){
+  function nextInterval(item,score,repsBefore){
+    const reps=Math.max(0,Number(repsBefore==null?item&&item.reps:repsBefore)||0);
     if(score<60)return 1;
-    if(item.reps<=0)return score>=85?2:1;
-    if(item.reps===1)return score>=85?5:3;
+    if(reps<=0)return score>=85?2:1;
+    if(reps===1)return score>=85?5:3;
     const factor=clamp(item.ease+(score>=90?0.15:score<75?-0.12:0),1.3,2.8);
     return Math.max(1,Math.min(120,Math.round((item.intervalDays||2)*factor)));
   }
@@ -61,11 +62,12 @@
     }
   }
   function recordAttempt(raw,exercise,score,meta){
-    const s=normalizeState(raw,raw&&raw.profileId),ex=exercise||{},m=meta||{},n=clamp(score,0,100),id=ex.id||("adhoc-"+Date.now()),it=itemState(s,id);
+    const s=normalizeState(raw,raw&&raw.profileId),ex=exercise||{},m=meta||{},n=clamp(score,0,100),id=ex.id||("adhoc-"+Date.now()),it=itemState(s,id),skill=skillOf(ex),repsBefore=it.reps||0;
     it.attempts++;it.scores=(it.scores||[]).concat(n).slice(-20);it.lastAt=nowIso();if(n<60){it.lapses++;it.reps=0;it.ease=clamp(it.ease-.2,1.3,2.8);}else{it.reps++;it.ease=clamp(it.ease+(n>=90?.1:n<75?-.05:0),1.3,2.8);}
     if(m.transfer===true&&n>=75)it.transferPasses=(it.transferPasses||0)+1;
-    it.intervalDays=nextInterval(it,n);const due=new Date();due.setDate(due.getDate()+it.intervalDays);it.dueAt=due.toISOString();it.confidence=confidenceScore(it.confidence,n,m.confidence);it.mastery=masteryScore(it);s.items[id]=it;
-    const skill=skillOf(ex),sk=s.skills[skill]||{attempts:0,total:0,avg:0,best:0,mastery:0,confidence:0,lastAt:null,streak:0};sk.attempts++;sk.total+=n;sk.avg=Math.round(sk.total/sk.attempts);sk.best=Math.max(sk.best||0,n);sk.lastAt=nowIso();sk.confidence=confidenceScore(sk.confidence,n,m.confidence);const mastered=Object.values(s.items).filter(x=>x.mastery>=80).length,totalItems=Math.max(1,Object.keys(s.items).length);sk.mastery=Math.round((sk.avg*.7)+(mastered/totalItems*100*.3));sk.streak=n>=70?(sk.streak||0)+1:0;s.skills[skill]=sk;
+    it.skill=skill;it.level=ex.level||it.level||s.currentLevel;it.type=ex.type||it.type||"";it.lessonId=ex.lessonId||it.lessonId||"";
+    it.intervalDays=nextInterval(it,n,repsBefore);const due=new Date();due.setDate(due.getDate()+it.intervalDays);it.dueAt=due.toISOString();it.confidence=confidenceScore(it.confidence,n,m.confidence);it.mastery=masteryScore(it);s.items[id]=it;
+    const sk=s.skills[skill]||{attempts:0,total:0,avg:0,best:0,mastery:0,confidence:0,lastAt:null,streak:0};sk.attempts++;sk.total+=n;sk.avg=Math.round(sk.total/sk.attempts);sk.best=Math.max(sk.best||0,n);sk.lastAt=nowIso();sk.confidence=confidenceScore(sk.confidence,n,m.confidence);const skillItems=Object.values(s.items).filter(x=>x&&x.skill===skill),mastered=skillItems.filter(x=>x.mastery>=80).length,totalItems=Math.max(1,skillItems.length);sk.mastery=Math.round((sk.avg*.7)+(mastered/totalItems*100*.3));sk.streak=n>=70?(sk.streak||0)+1:0;s.skills[skill]=sk;
     recordError(s,ex,n,m.answer);updateKnowledgeMaps(s,ex,n);
     s.history.push({exerciseId:id,type:ex.type,level:ex.level,skill,score:n,confidence:m.confidence==null?null:clamp(m.confidence,0,100),transfer:!!m.transfer,at:nowIso()});if(s.history.length>1500)s.history=s.history.slice(-1500);
     s.updatedAt=nowIso();return s;
@@ -82,12 +84,40 @@
   }
   function buildDailyPlan(raw,minutes,level){
     const s=normalizeState(raw,raw&&raw.profileId),budget=Math.max(10,Math.min(120,Number(minutes)||s.dailyMinutes||25)),lv=LEVELS.includes(level)?level:s.currentLevel,all=(Exercises&&Exercises.exercises||[]).filter(x=>x.level===lv),due=dueReviews(s,Math.ceil(budget/2)),weak=weakestSkills(s).slice(0,3),selected=[],used=new Set();let spent=0;
-    function add(ex,reason){if(!ex||used.has(ex.id))return;const cost=TYPE_MINUTES[ex.type]||3;if(spent+cost>budget&&selected.length)return;used.add(ex.id);selected.push({exercise:ex,minutes:cost,reason});spent+=cost;}
+    function add(ex,reason){if(!ex||used.has(ex.id))return;const cost=TYPE_MINUTES[ex.type]||3;if(spent+cost>budget)return;used.add(ex.id);selected.push({exercise:ex,minutes:cost,reason});spent+=cost;}
     due.forEach(x=>add(x,"مرور موعددار"));
     weak.forEach((w,idx)=>deterministicPick(all.filter(x=>skillOf(x)===w.id&&!used.has(x.id)),Math.max(1,idx===0?3:2),Number(dateKey().replace(/-/g,""))+idx).forEach(x=>add(x,"تقویت "+w.id)));
     deterministicPick(all.filter(x=>!used.has(x.id)),20,Number(dateKey().replace(/-/g,""))+17).forEach(x=>{if(spent<budget)add(x,"پیشروی و Transfer");});
     const plan={date:dateKey(),level:lv,budgetMinutes:budget,estimatedMinutes:spent,weakest:weak,items:selected,createdAt:nowIso()};s.lastPlan=clone(plan);s.dailyMinutes=budget;s.currentLevel=lv;s.updatedAt=nowIso();return{state:s,plan};
   }
+  function setResume(raw,input){
+    const s=normalizeState(raw,raw&&raw.profileId),i=input&&typeof input==="object"?input:{};
+    s.resume={kind:String(i.kind||""),id:String(i.id||""),step:Math.max(0,Number(i.step)||0),level:LEVELS.includes(i.level)?i.level:s.currentLevel,payload:i.payload&&typeof i.payload==="object"?clone(i.payload):{},at:nowIso()};
+    s.updatedAt=nowIso();return s;
+  }
+  function clearResume(raw){
+    const s=normalizeState(raw,raw&&raw.profileId);s.resume=null;s.updatedAt=nowIso();return s;
+  }
+  function buildQuizSession(raw,options){
+    const s=normalizeState(raw,raw&&raw.profileId),o=options||{},lv=LEVELS.includes(o.level)?o.level:s.currentLevel,count=Math.max(5,Math.min(40,Number(o.count)||12));
+    const pool=(Exercises&&Exercises.exercises||[]).filter(x=>x.level===lv);
+    const seed=Number(String(dateKey()).replace(/-/g,""))+(s.history.length||0)+(Number(o.seed)||0);
+    const weak=weakestSkills(s).slice(0,4).map(x=>x.id),selected=[],used=new Set();
+    function take(list,n){deterministicPick(list.filter(x=>!used.has(x.id)),n,seed+selected.length*17).forEach(x=>{if(selected.length<count&&!used.has(x.id)){used.add(x.id);selected.push(x);}});}
+    weak.forEach(skill=>take(pool.filter(x=>skillOf(x)===skill),Math.max(1,Math.floor(count/weak.length))));
+    take(pool,count-selected.length);
+    return{id:"quiz-"+lv+"-"+Date.now(),kind:"checkpoint",level:lv,items:selected.slice(0,count),createdAt:nowIso(),diagnosticOnly:true};
+  }
+  function scoreQuizSession(session,answers){
+    const items=Array.isArray(session&&session.items)?session.items:[],a=Array.isArray(answers)?answers:[],rows=items.map((ex,i)=>{
+      const supplied=a[i]||{},manual=ex.answer==="free",score=manual?clamp(supplied.score,0,100):(Exercises&&Exercises.compare?Exercises.compare(supplied.answer||"",ex.answer):0);
+      return{exerciseId:ex.id,skill:skillOf(ex),score,manual};
+    });
+    const bySkill={};rows.forEach(r=>(bySkill[r.skill]||(bySkill[r.skill]=[])).push(r.score));
+    const skillScores=Object.fromEntries(Object.entries(bySkill).map(([k,v])=>[k,mean(v)])),overall=mean(rows.map(x=>x.score)),minSkill=Math.min(...Object.values(skillScores).concat([100]));
+    return{sessionId:session&&session.id||"",level:session&&session.level||"A1",overall,skillScores,pass:rows.length>=5&&overall>=75&&minSkill>=60,rows,diagnosticOnly:true,note:"Offline checkpoint; free-response items use learner self-rating unless reviewed by a teacher."};
+  }
+
   function masteryGate(raw,level){
     const s=normalizeState(raw),lv=LEVELS.includes(level)?level:s.currentLevel,h=s.history.filter(x=>x.level===lv).slice(-120),skillScores={};SKILLS.forEach(k=>{const a=h.filter(x=>x.skill===k).map(x=>x.score);skillScores[k]=mean(a);});
     const objective=["vocabulary","grammar","reading","listening"],production=["writing","speaking"],objMin=Math.min(...objective.map(k=>skillScores[k]||0)),prodMin=Math.min(...production.map(k=>skillScores[k]||0)),transfer=h.filter(x=>x.transfer&&x.score>=75).length,unresolved=Object.values(s.errors).filter(e=>e.level===lv&&!e.resolved&&e.count>=2).length;
@@ -130,5 +160,5 @@
   function missionProgress(raw,period){
     const s=normalizeState(raw),m=mission(s,period),days=period==="monthly"?31:7,since=Date.now()-days*86400000,h=s.history.filter(x=>new Date(x.at).getTime()>=since),resolved=Object.values(s.errors).filter(e=>e.resolved&&e.lastAt&&new Date(e.lastAt).getTime()>=since).length,transfer=h.filter(x=>x.transfer&&x.score>=75).length,progress={attempts:h.length,transfer,errorsResolved:resolved},targets=m.targets;return{...m,progress,completed:progress.attempts>=targets.attempts&&progress.transfer>=targets.transfer&&progress.errorsResolved>=targets.errorsResolved};
   }
-  return{LEVELS,SKILLS,TYPE_SKILL,initialState,normalizeState,recordAttempt,dueReviews,weakestSkills,buildDailyPlan,masteryGate,nextLevel,errorBank,rescueFor,immersion,unknownChallenge,placementSession,scorePlacement,mission,missionProgress,skillOf};
+  return{LEVELS,SKILLS,TYPE_SKILL,initialState,normalizeState,recordAttempt,dueReviews,weakestSkills,buildDailyPlan,setResume,clearResume,buildQuizSession,scoreQuizSession,masteryGate,nextLevel,errorBank,rescueFor,immersion,unknownChallenge,placementSession,scorePlacement,mission,missionProgress,skillOf};
 });
