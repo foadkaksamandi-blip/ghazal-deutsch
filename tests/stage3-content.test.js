@@ -154,3 +154,14 @@ test('Stage 3 asset is wired before exercise generation and included in syntax Q
   assert.ok(audit.includes('stage3-pack-audit'));
   assert.ok(heavy.includes('stage3-content-pack'));
 });
+
+
+test('Stage 3 runtime cannot use stale WebView assets after in-place APK update',()=>{
+  const main=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
+  const app=fs.readFileSync(path.join(ASSETS,'app.js'),'utf8');
+  assert.ok(main.includes('settings.setCacheMode(WebSettings.LOAD_NO_CACHE)'));
+  assert.ok(main.includes('webView.clearCache(true)'));
+  assert.ok(app.includes('window.GhazalStage3Content.apply'));
+  assert.ok(app.includes('data-ghz-stage3-runtime'));
+  assert.ok(app.includes('count >= 40'));
+});
