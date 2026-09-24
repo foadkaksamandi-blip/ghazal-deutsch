@@ -756,9 +756,9 @@
       result.exams=pushUnique(deep.exams,exams,x=>x.id);
     }
     if(dict){
-      const addedCurated=pushUnique(dict.curated,dictionary,x=>x.level+"|"+String(x.lemma).toLocaleLowerCase("de-DE"));
-      pushUnique(dict.all,dictionary,x=>x.level+"|"+String(x.lemma).toLocaleLowerCase("de-DE"));
-      result.dictionary=addedCurated;
+      const key=x=>x.level+"|"+String(x.lemma).toLocaleLowerCase("de-DE");
+      result.dictionaryCurated=pushUnique(dict.curated,dictionary,key);
+      result.dictionary=pushUnique(dict.all,dictionary,key);
     }
     return result;
   }
