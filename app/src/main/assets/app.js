@@ -2,7 +2,25 @@
   "use strict";
 
   const Core = window.GhazalCore;
+  if (window.GhazalStage3Content && typeof window.GhazalStage3Content.apply === "function") {
+    window.GhazalStage3Content.apply({
+      data: window.GhazalData,
+      lib: window.GhazalLibrary,
+      dict: window.GhazalDictionary,
+      deep: window.GhazalDeepLibrary
+    });
+  }
   const Data = window.GhazalData;
+  try {
+    const counts = {};
+    ["A1","A2","B1","B2","C1","C2"].forEach(level => {
+      counts[level] = Data.lessons.filter(item => item.level === level).length;
+    });
+    document.documentElement.setAttribute("data-ghz-stage3-runtime",
+      Object.values(counts).every(count => count >= 40) ? "ready" : "incomplete");
+  } catch (_) {
+    document.documentElement.setAttribute("data-ghz-stage3-runtime", "error");
+  }
   const STORAGE_KEY = "ghazal_deutsch_state_v1";
   const SCHEMA_VERSION = 1;
 
