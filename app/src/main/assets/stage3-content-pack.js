@@ -1,7 +1,8 @@
 (function(root,factory){
   const api=factory();
-  if(typeof module==="object"&&module.exports)module.exports=api;
-  if(root){
+  const isCommonJs=typeof module==="object"&&module.exports;
+  if(isCommonJs)module.exports=api;
+  if(root&&!isCommonJs){
     api.apply({data:root.GhazalData,lib:root.GhazalLibrary,dict:root.GhazalDictionary,deep:root.GhazalDeepLibrary});
     root.GhazalStage3Content=api;
   }
