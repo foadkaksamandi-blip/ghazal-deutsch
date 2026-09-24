@@ -123,3 +123,16 @@ Stage 8 external release gates that remain intentionally outside source control:
 - repository privacy before commercial source protection matters
 
 These external gates must never be bypassed by committing a private key, password, API key, or signing secret to the repository.
+
+
+## Current 9-stage execution acceptance
+
+This section records the active execution roadmap used for device acceptance and supersedes older stage labels where numbering conflicts.
+
+- Stage 1 — UI/Core stabilization: **DEVICE ACCEPTED / LOCKED**.
+- Stage 2 — Offline Learning Engine: **DEVICE ACCEPTED / LOCKED**.
+  - Real-device acceptance confirmed for touch behavior, daily-plan interaction, exact resume after closing/reopening the app, and direct checkpoint-quiz entry.
+  - The existing `×` close control across screens is an explicitly accepted UI behavior. It is not considered a Stage 2 defect and must not be changed solely for cosmetic consistency.
+  - Stage 2 learning-engine scope locked: A1–C2 lesson/exercise flow, quiz/checkpoint testing, SRS, error bank, per-skill mastery, daily plan, adaptive learning, exact resume/draft persistence, and safe migration of prior learning state.
+  - Any future change to these paths must preserve the accepted touch behavior and pass the Stage 2 phone-flow instrumentation tests before merge.
+- Next execution stage: Stage 3 — complete real A1–C2 educational content.
