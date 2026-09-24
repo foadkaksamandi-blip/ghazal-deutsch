@@ -132,6 +132,11 @@ public class MainActivity extends FragmentActivity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // App assets are bundled with the APK and must never be served from a stale
+        // WebView cache after an in-place APK upgrade. This does not clear DOM storage
+        // (localStorage), so learner progress remains intact.
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        webView.clearCache(true);
         settings.setAllowContentAccess(false);
         settings.setAllowFileAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
