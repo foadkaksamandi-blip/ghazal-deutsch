@@ -237,4 +237,14 @@ public class InteractionInstrumentedTest {
                 evalBool("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')"));
     }
 
+
+    @Test
+    public void stage3RuntimeContentIsAppliedInRealWebView() throws Exception {
+        freshFirstRun();
+        waitFor("document.documentElement.getAttribute('data-ghz-stage3-runtime')==='ready'", "Stage 3 runtime marker");
+        waitFor("(function(){var d=window.GhazalData;if(!d||!Array.isArray(d.lessons))return false;return ['A1','A2','B1','B2','C1','C2'].every(function(l){return d.lessons.filter(function(x){return x.level===l;}).length>=40;});})()", "40 lessons per CEFR level");
+        assertTrue("Stage 3 pack is not exposed in WebView", evalBool("!!window.GhazalStage3Content && window.GhazalStage3Content.VERSION==='3.0.0'"));
+        assertTrue("Stage 3 lesson total is below 240", evalBool("window.GhazalData.lessons.length>=240"));
+    }
+
 }
