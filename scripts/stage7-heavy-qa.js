@@ -29,7 +29,7 @@ function loadAll(){
   const rel=[
     "course-data.js","release4-content.js","release5-content.js","release7-content.js","release10-capstone-content.js",
     "release7-library.js","release8-dictionary.js","release8-deep-library.js","release9-specialization.js",
-    "release10-advanced-content.js","release10-exercise-engine.js","release10-content-system.js","platform-core.js",
+    "release10-advanced-content.js","stage3-content-pack.js","release10-exercise-engine.js","release10-content-system.js","platform-core.js",
     "release11-learning-engine.js","release11-classroom-core.js"
   ];
   rel.forEach(p=>{const full=path.join(ASSETS,p);try{delete require.cache[require.resolve(full)];}catch(_){}});
@@ -41,23 +41,25 @@ function loadAll(){
   const deep=require(path.join(ASSETS,rel[7]));window.GhazalDeepLibrary=deep;
   const spec=require(path.join(ASSETS,rel[8]));window.GhazalSpecialization=spec;
   const advanced=require(path.join(ASSETS,rel[9]));window.GhazalAdvancedContent=advanced;
-  const exercises=require(path.join(ASSETS,rel[10]));window.GhazalExerciseEngine=exercises;
-  const content=require(path.join(ASSETS,rel[11]));window.GhazalContentSystem=content;
-  const platform=require(path.join(ASSETS,rel[12]));window.GhazalPlatformCore=platform;
-  const learning=require(path.join(ASSETS,rel[13]));window.GhazalLearningEngine=learning;
-  const classroom=require(path.join(ASSETS,rel[14]));window.GhazalClassroomCore=classroom;
+  const stage3=require(path.join(ASSETS,rel[10]));window.GhazalStage3Content=stage3;stage3.apply({data,lib,dict,deep});
+  const exercises=require(path.join(ASSETS,rel[11]));window.GhazalExerciseEngine=exercises;
+  const content=require(path.join(ASSETS,rel[12]));window.GhazalContentSystem=content;
+  const platform=require(path.join(ASSETS,rel[13]));window.GhazalPlatformCore=platform;
+  const learning=require(path.join(ASSETS,rel[14]));window.GhazalLearningEngine=learning;
+  const classroom=require(path.join(ASSETS,rel[15]));window.GhazalClassroomCore=classroom;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   const qa=require(path.join(ASSETS,"release13-qa-core.js"));window.GhazalQACore=qa;
   delete global.window;
-  return{data,lib,dict,deep,spec,advanced,exercises,content,platform,learning,classroom,product,security,qa};
+  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,platform,learning,classroom,product,security,qa};
 }
 
 function rng(seed=0x5a17c0de){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/0x100000000;};}
 function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
 (async()=>{
-  const all=loadAll(),{data,exercises,content,dict,platform,learning,classroom,product,security,qa}=all;
+  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,classroom,product,security,qa}=all;
+  assertCheck("stage3-content-pack",stage3.audit().pass,stage3.audit());
 
   const contentAudit=qa.contentAudit();
   assertCheck("content-full-schema",contentAudit.pass,contentAudit);
