@@ -18,6 +18,8 @@ function load(){
   const deep=require(path.join(ASSETS,"release8-deep-library.js"));window.GhazalDeepLibrary=deep;
   const spec=require(path.join(ASSETS,"release9-specialization.js"));window.GhazalSpecialization=spec;
   const adv=require(path.join(ASSETS,"release10-advanced-content.js"));window.GhazalAdvancedContent=adv;
+  const stage3=require(path.join(ASSETS,"stage3-content-pack.js"));window.GhazalStage3Content=stage3;
+  const stage3Apply=stage3.apply({data,lib,dict,deep});
   const ex=require(path.join(ASSETS,"release10-exercise-engine.js"));window.GhazalExerciseEngine=ex;
   const content=require(path.join(ASSETS,"release10-content-system.js"));window.GhazalContentSystem=content;
   const learning=require(path.join(ASSETS,"release11-learning-engine.js"));window.GhazalLearningEngine=learning;
@@ -25,7 +27,7 @@ function load(){
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   delete global.window;
-  return{data,lib,dict,deep,spec,adv,ex,content,learning,classroom,product,security};
+  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,learning,classroom,product,security};
 }
 (async()=>{
   const x=load();
@@ -34,12 +36,13 @@ function load(){
   const byReadLib=countBy(x.lib.reading,"level"),byListenLib=countBy(x.lib.listening,"level"),byReadDeep=countBy(x.deep.reading,"level"),byListenDeep=countBy(x.deep.listening,"level");
   const byDict=countBy(x.dict.all,"level"),byPron=countBy(x.adv.pronunciation,"level"),byExamLevel=countBy(x.deep.exams,"level"),byExamBrand=countBy(x.deep.exams,"exam");
 
-  add("lessons-commercial-scale",x.data.lessons.length>=200,{count:x.data.lessons.length});
+  add("stage3-pack-audit",x.stage3&&x.stage3.audit().pass,{audit:x.stage3&&x.stage3.audit(),applied:x.stage3Apply});
+  add("lessons-commercial-scale",x.data.lessons.length>=240,{count:x.data.lessons.length});
   add("exercises-commercial-scale",x.ex.exercises.length>=5000,{count:x.ex.exercises.length});
-  add("all-cefr-lessons",LEVELS.every(l=>(byLesson[l]||0)>=30),byLesson);
+  add("all-cefr-lessons",LEVELS.every(l=>(byLesson[l]||0)>=40),byLesson);
   add("all-cefr-exercises",LEVELS.every(l=>(byExercise[l]||0)>=650),byExercise);
-  add("grammar-all-levels",LEVELS.every(l=>(byGrammar[l]||0)>=10),byGrammar);
-  add("redemittel-all-levels",LEVELS.every(l=>(byRedemittel[l]||0)>=8),byRedemittel);
+  add("grammar-all-levels",LEVELS.every(l=>(byGrammar[l]||0)>=14),byGrammar);
+  add("redemittel-all-levels",LEVELS.every(l=>(byRedemittel[l]||0)>=14),byRedemittel);
   add("writing-all-levels",LEVELS.every(l=>(byWriting[l]||0)>=4),byWriting);
   add("speaking-all-levels",LEVELS.every(l=>(bySpeaking[l]||0)>=4),bySpeaking);
   add("reading-all-levels",LEVELS.every(l=>((byReadLib[l]||0)+(byReadDeep[l]||0))>=4),{library:byReadLib,deep:byReadDeep});
