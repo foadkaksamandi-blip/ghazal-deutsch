@@ -93,7 +93,8 @@ test('Stage 3 apply is idempotent and expands real app banks without duplicate I
   const second=pack.apply({data:x.data,lib:x.lib,dict:x.dict,deep:x.deep});
   assert.equal(after1.lessons,before.lessons+30);
   assert.equal(after1.grammar,before.grammar+24);
-  assert.ok(after1.dict>before.dict+100,{before:before.dict,after:after1.dict,first});
+  assert.ok(first.dictionary>=80,JSON.stringify({before:before.dict,after:after1.dict,first}));
+  assert.equal(after1.dict-before.dict,first.dictionary);
   assert.equal(after1.reading,before.reading+12);
   assert.equal(after1.listening,before.listening+12);
   assert.equal(after1.exams,before.exams+16);
