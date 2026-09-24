@@ -686,7 +686,7 @@
     ["A2","die Haftpflichtversicherung","Nomen","بیمه مسئولیت شخصی","die Haftpflichtversicherungen","","eine Haftpflichtversicherung abschließen","Ich habe eine Haftpflichtversicherung.","formal"],
     ["A2","die Frühschicht","Nomen","شیفت صبح","die Frühschichten","","Frühschicht übernehmen","Am Montag habe ich Frühschicht.","neutral"],
     ["A2","die IBAN","Nomen","شماره حساب بین‌المللی","die IBANs","","IBAN prüfen","Bitte prüfen Sie die IBAN.","formal"],
-    ["A2","der Fahrgastrechte","Nomen","حقوق مسافر","","Plural","Fahrgastrechte kennen","Informationen zu Fahrgastrechten finden Sie online.","formal"],
+    ["A2","die Fahrgastrechte","Nomen","حقوق مسافر","","Plural","Fahrgastrechte kennen","Informationen zu Fahrgastrechten finden Sie online.","formal"],
     ["A2","separat","Adjektiv/Adverb","جداگانه","","","separat bezahlen","Strom wird separat bezahlt.","neutral"],
 
     ["B1","das Aktenzeichen","Nomen","شماره پرونده","die Aktenzeichen","","Aktenzeichen angeben","Bitte nennen Sie das Aktenzeichen.","formal"],
