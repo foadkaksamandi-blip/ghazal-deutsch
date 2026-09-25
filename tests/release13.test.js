@@ -131,7 +131,8 @@ test('Stage 7 version stays aligned with the current forward release',()=>{
   const qa=fs.readFileSync(path.join(root,'app/src/main/assets/release13-qa-core.js'),'utf8');
   const major=Number(pkg.version.split('.')[0]);
   assert.ok(major>=13);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(main.includes('return "'+pkg.version+'"'));
   assert.ok(bridge.includes('return activity == null ? "'+pkg.version+'"'));
   assert.ok(qa.includes('const VERSION="'+pkg.version+'"'));
