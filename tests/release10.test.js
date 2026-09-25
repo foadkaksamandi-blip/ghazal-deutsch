@@ -133,8 +133,11 @@ test('Release 10 assets survive later product versions',()=>{
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   for(const asset of ['release10-capstone-content.js','release10-advanced-content.js','release10-human-audio.js','release10-exercise-engine.js','release10-content-system.js','release10-offline-coach.js','release10-stage2-ui.js','release10-stage2.css']) assert.ok(index.includes(asset),asset);
   assert.ok(Number(pkg.version.split('.')[0])>=10);
-  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=10);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(bridge.includes('activity == null ? "'+pkg.version+'"'));
 });
 
