@@ -44,22 +44,25 @@ function loadAll(){
   const stage3=require(path.join(ASSETS,rel[10]));window.GhazalStage3Content=stage3;stage3.apply({data,lib,dict,deep});
   const exercises=require(path.join(ASSETS,rel[11]));window.GhazalExerciseEngine=exercises;
   const content=require(path.join(ASSETS,rel[12]));window.GhazalContentSystem=content;
+  const coach=require(path.join(ASSETS,"release10-offline-coach.js"));window.GhazalOfflineCoach=coach;
   const platform=require(path.join(ASSETS,rel[13]));window.GhazalPlatformCore=platform;
   const learning=require(path.join(ASSETS,rel[14]));window.GhazalLearningEngine=learning;
+  const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
   const classroom=require(path.join(ASSETS,rel[15]));window.GhazalClassroomCore=classroom;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   const qa=require(path.join(ASSETS,"release13-qa-core.js"));window.GhazalQACore=qa;
   delete global.window;
-  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,platform,learning,classroom,product,security,qa};
+  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,coach,platform,learning,stage4,classroom,product,security,qa};
 }
 
 function rng(seed=0x5a17c0de){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/0x100000000;};}
 function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
 (async()=>{
-  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,classroom,product,security,qa}=all;
+  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,stage4,classroom,product,security,qa}=all;
   assertCheck("stage3-content-pack",stage3.audit().pass,stage3.audit());
+  assertCheck("stage4-engine-contract",["buildBaselineAssessment","scoreBaseline","evaluateWriting","evaluateSpeaking","evaluatePronunciation","applyAssessment","errorProfile","buildAdaptivePlan","tutorAdvice"].every(k=>typeof stage4[k]==="function"),{version:stage4.VERSION});
 
   const contentAudit=qa.contentAudit();
   assertCheck("content-full-schema",contentAudit.pass,contentAudit);
@@ -103,6 +106,29 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   }
   const learnMs=Math.round(performance.now()-learnStart);report.metrics.learning1600Ms=learnMs;
   assertCheck("learning-fuzz",attempts===1600&&learner.history.length<=1500&&learnMs<15000,{attempts,history:learner.history.length,learnMs});
+
+  const stage4Start=performance.now();
+  const diag=stage4.buildBaselineAssessment(1234);
+  const diagAnswers=diag.items.map(x=>({answer:x.answer}));
+  const diagResult=stage4.scoreBaseline(diag,diagAnswers);
+  let s4=stage4.defaults("qa-stage4",diagResult.suggestedLevel);
+  let l4=learning.initialState("qa-stage4");
+  for(let i=0;i<120;i++){
+    const ex=exercises.exercises[i%exercises.exercises.length];
+    l4=learning.recordAttempt(l4,ex,50+(i%51),{answer:ex.answer==="free"?"qa":ex.answer,confidence:70,transfer:i%3===0});
+  }
+  for(let i=0;i<80;i++){
+    const level=stage4.LEVELS[i%stage4.LEVELS.length];
+    const w=stage4.evaluateWriting("Sehr geehrte Damen und Herren. Ich schreibe, weil ich eine Rückfrage habe. Außerdem möchte ich einen Termin vereinbaren. Vielen Dank für Ihre Rückmeldung. Mit freundlichen Grüßen",level,"formelle Anfrage");
+    const sp=stage4.evaluateSpeaking("Ich möchte meine Meinung erklären. Erstens ist die Lösung praktisch. Außerdem spart sie Zeit. Deshalb würde ich diese Variante empfehlen.",level,"Stellungnahme");
+    if(w.total<0||w.total>100||sp.total<0||sp.total>100)throw new Error("stage4 score bounds");
+    s4=stage4.recordWriting(s4,w);s4=stage4.recordSpeaking(s4,sp);
+  }
+  s4=stage4.applyAssessment(s4,l4,diagResult,s4.writingHistory.at(-1),s4.speakingHistory.at(-1));
+  const s4plan=stage4.buildAdaptivePlan(s4.learnerProfile,l4,25);
+  const s4advice=stage4.tutorAdvice("برای گرامر امروز چه کار کنم؟",s4.learnerProfile,l4);
+  const s4errors=stage4.errorProfile(l4,s4);
+  assertCheck("stage4-functional-stress",diag.items.length===24&&diagResult.completed===24&&stage4.completion(s4.learnerProfile).done===6&&s4plan.items.length>0&&s4advice.answer.length>20&&s4errors.active>=0,{level:s4.learnerProfile.level,overall:s4.learnerProfile.overall,plan:s4plan.items.length,ms:Math.round(performance.now()-stage4Start)});
 
   const classroomStart=performance.now();
   for(let n=0;n<40;n++){
