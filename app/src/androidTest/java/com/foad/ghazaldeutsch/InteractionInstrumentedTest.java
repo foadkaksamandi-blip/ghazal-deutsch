@@ -247,4 +247,46 @@ public class InteractionInstrumentedTest {
         assertTrue("Stage 3 lesson total is below 240", evalBool("window.GhazalData.lessons.length>=240"));
     }
 
+
+    @Test
+    public void stage4TutorEvaluationFlowRunsInRealWebView() throws Exception {
+        freshFirstRun();
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('#view [data-s4=\"hub\"]')", "Stage 4 entry");
+        physicalTap("#view [data-s4='hub']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 4 modal");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('مربی خصوصی و ارزیابی')>=0", "Stage 4 hub text");
+        assertTrue("Stage 4 engine missing in WebView",
+                evalBool("!!window.GhazalStage4Tutor && window.GhazalStage4Tutor.VERSION==='4.0.0'"));
+        assertTrue("Stage 4 hub is missing required capabilities",
+                evalBool("['baseline','tutor','writing','speaking','pronunciation','errors','adaptive','profile'].every(function(x){return !!document.querySelector('#modal-content [data-s4=\"'+x+'\"]');})"));
+
+        physicalTap("#modal-content [data-s4='baseline']");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('سؤال 1 از 24')>=0", "Stage 4 baseline first question");
+        waitFor("!!document.querySelector('#modal-content [data-s4=\"baseline-option\"]') || !!document.querySelector('#modal-content [data-s4=\"baseline-check\"]')", "Stage 4 baseline answer control");
+
+        physicalTap("#modal-content [data-s4='hub']");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('مربی خصوصی و ارزیابی')>=0", "Stage 4 hub return");
+        physicalTap("#modal-content [data-s4='writing']");
+        waitFor("!!document.querySelector('#s4-writing-text')", "Stage 4 writing textarea");
+        eval("(function(){var e=document.getElementById('s4-writing-text');e.value='Sehr geehrte Damen und Herren. Ich möchte mich nach dem Bearbeitungsstand erkundigen, weil ich alle Unterlagen bereits eingereicht habe. Außerdem bitte ich um eine kurze Rückmeldung. Mit freundlichen Grüßen';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
+        physicalTap("#modal-content [data-s4='writing-evaluate']");
+        waitFor("document.getElementById('s4-writing-result').innerText.indexOf('/ 100')>=0", "Stage 4 writing evaluation result");
+
+        physicalTap("#modal-content [data-s4='hub']");
+        waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor\"]')", "Stage 4 tutor button");
+        physicalTap("#modal-content [data-s4='tutor']");
+        waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor-quick\"]')", "Stage 4 tutor quick action");
+        physicalTap("#modal-content [data-s4='tutor-quick']");
+        waitFor("document.getElementById('s4-tutor-result').innerText.length>20", "Stage 4 tutor answer");
+
+        assertTrue("Stage 4 speaking evaluator failed in WebView",
+                evalBool("(function(){var r=window.GhazalStage4Tutor.evaluateSpeaking('Ich erkläre meine Meinung. Außerdem nenne ich ein Beispiel. Deshalb empfehle ich diese Lösung.','B2','Stellungnahme');return r.total>=0&&r.total<=100&&r.rubric&&r.limitations.indexOf('Transcript')>=0;})()"));
+        assertTrue("Stage 4 adaptive planner failed in WebView",
+                evalBool("(function(){var T=window.GhazalStage4Tutor,L=window.GhazalLearningBridge.state(),S=T.defaults('device','B1');S.learnerProfile=T.mergeEvidence(L,null,null,null,S.learnerProfile);S.learnerProfile.level='B1';var p=T.buildAdaptivePlan(S.learnerProfile,L,25);return p.items.length>0&&p.estimatedMinutes<=25;})()"));
+    }
+
 }
