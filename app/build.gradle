@@ -29,8 +29,7 @@ android {
         minSdk 26
         targetSdk 35
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        versionCode 16
-        versionName "14.0.2"
+        versionCode ghzVersionCode\n        versionName ghzVersionName
         buildConfigField "boolean", "PRODUCTION_SIGNING_ENABLED", "false"
         buildConfigField "String", "EXPECTED_CERT_SHA256", "\"\""
         buildConfigField "boolean", "FINAL_RELEASE_BUILD", "false"
