@@ -142,7 +142,9 @@ test('Stage 6 Gradle provides hardened QA and secret-backed production signing g
   const root=path.join(__dirname,'..');
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
-  const vc=gradle.match(/versionCode\s+(\d+)/); assert.ok(vc&&Number(vc[1])>=12);
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
   assert.ok(gradle.includes('versionName ghzVersionName'));
   assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(gradle.includes('hardenedQa'));
