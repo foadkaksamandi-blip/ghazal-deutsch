@@ -194,11 +194,20 @@ public class InteractionInstrumentedTest {
         assertTrue("Daily-plan labels still expose raw English exercise types",
                 evalBool("document.getElementById('modal-content').innerText.indexOf('یادآوری')>=0 || document.getElementById('modal-content').innerText.indexOf('معنی واژه')>=0 || document.getElementById('modal-content').innerText.indexOf('جای خالی')>=0"));
 
-        eval("(function(){var buttons=Array.from(document.querySelectorAll('#modal-content [data-r11=\"plan-item\"]'));var bank=(window.GhazalExerciseEngine&&window.GhazalExerciseEngine.exercises)||[];var b=buttons.find(function(btn){var ex=bank.find(function(x){return x.id===btn.dataset.id;});return ex && !(Array.isArray(ex.options)&&ex.options.length);});if(!b)return false;b.setAttribute('data-qa-editable-plan','true');return true;})()");
-        waitFor("!!document.querySelector('#modal-content [data-qa-editable-plan=\"true\"]')", "editable Stage 2 plan item");
-        physicalTap("#modal-content [data-qa-editable-plan='true']");
-        waitFor("!!document.querySelector('[data-r11=\"back-learning\"]')", "explicit Stage 2 back button");
-        waitFor("!!document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer')", "editable Stage 2 answer");
+        // Keep a real physical-tap assertion on the daily plan itself.
+        physicalTap("#modal-content [data-r11='plan-item']");
+        waitFor("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')", "Stage 2 exercise opened by physical tap");
+        waitFor("!!document.querySelector('#modal-content #r11-answer, #modal-content .r10-option, #modal-content [data-r11=\"free-score\"]')", "Stage 2 answer controls after physical tap");
+
+        // Draft/resume requires an editable exercise. Do not make that assertion depend
+        // on which plan item happens to be physically visible/first on a given day.
+        physicalTap("#modal-content [data-r11='back-learning']");
+        waitFor("!!document.querySelector('#modal-content [data-r11=\"daily-plan\"]')", "Stage 2 hub after physical exercise");
+        physicalTap("#modal-content [data-r11='daily-plan']");
+        waitFor("!!document.querySelector('#modal-content [data-r11=\"plan-item\"]')", "daily plan rebuilt for editable resume case");
+        eval("(function(){var buttons=Array.from(document.querySelectorAll('#modal-content [data-r11=\"plan-item\"]'));var bank=(window.GhazalExerciseEngine&&window.GhazalExerciseEngine.exercises)||[];var b=buttons.find(function(btn){var ex=bank.find(function(x){return x.id===btn.dataset.id;});return ex && !(Array.isArray(ex.options)&&ex.options.length);});if(!b)return false;b.click();return true;})()");
+        waitFor("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')", "editable Stage 2 exercise opened deterministically");
+        waitFor("!!document.querySelector('#modal-content #r11-answer')", "editable Stage 2 answer");
         eval("(function(){var e=document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer');if(!e)return false;e.value='GHAZAL-DRAFT-42';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
         waitFor("(function(){try{var keys=Object.keys(localStorage).filter(k=>k.indexOf('ghazal_learning_v2_')===0);if(!keys.length)return false;var s=JSON.parse(localStorage.getItem(keys[0])||'{}');return s.resume&&s.resume.payload&&s.resume.payload.draft==='GHAZAL-DRAFT-42';}catch(e){return false;}})()", "persisted Stage 2 draft");
 
