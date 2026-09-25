@@ -199,7 +199,10 @@
 
   function inject(){
     const grid=view.querySelector(".skill-grid");if(!grid||view.querySelector("[data-s4='hub']"))return;
-    grid.insertAdjacentHTML("afterbegin",'<button class="card skill-card s4-entry" data-s4="hub"><span class="big-icon">🎓</span><strong>مرحله ۴ · مربی خصوصی و ارزیابی</strong><small>تعیین سطح، Tutor، Writing، Speaking، پروفایل خطا و مسیر شخصی.</small></button>');
+    const html='<button class="card skill-card s4-entry" data-s4="hub"><span class="big-icon">🎓</span><strong>مرحله ۴ · مربی خصوصی و ارزیابی</strong><small>تعیین سطح، Tutor، Writing، Speaking، پروفایل خطا و مسیر شخصی.</small></button>';
+    const lockedAnchor=view.querySelector("[data-r11='checkpoint']")||view.querySelector("[data-r11='learning']");
+    if(lockedAnchor)lockedAnchor.insertAdjacentHTML("afterend",html);
+    else grid.insertAdjacentHTML("beforeend",html);
   }
   document.addEventListener("ghazal:ui-changed",inject);setTimeout(inject,500);
 })();
