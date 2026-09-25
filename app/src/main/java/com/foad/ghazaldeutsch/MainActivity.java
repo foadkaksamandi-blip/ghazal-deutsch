@@ -1061,7 +1061,7 @@ public class MainActivity extends FragmentActivity {
 
     String appVersion() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-        catch (PackageManager.NameNotFoundException exception) { return "14.0.3"; }
+        catch (PackageManager.NameNotFoundException exception) { return "14.0.2"; }
     }
 
     @Override
