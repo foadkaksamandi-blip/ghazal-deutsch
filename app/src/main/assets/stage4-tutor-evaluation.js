@@ -36,7 +36,7 @@
   function clamp(v,a,b){return Math.max(a,Math.min(b,Number(v)||0));}
   function avg(a){return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;}
   function words(v){return String(v||"").trim().split(/\s+/).filter(Boolean);}
-  function norm(v){return String(v||"").toLocaleLowerCase("de-DE").replace(/[^a-zäöüß0-9\s]/g," ").replace(/\s+/g," ").trim();}
+  function norm(v){return String(v||"").toLocaleLowerCase("de-DE").replace(/[^a-zäöüß0-9\u0600-\u06FF\s]/g," ").replace(/\s+/g," ").trim();}
   function uniqueRatio(v){const a=words(norm(v));return a.length?new Set(a).size/a.length:0;}
   function key(profileId){return "ghazal_tutor_v1_"+String(profileId||"local");}
   function skillOf(ex){return Learning&&Learning.skillOf?Learning.skillOf(ex):({meaning:"vocabulary",recall:"vocabulary",cloze:"grammar",grammar:"grammar",reading:"reading",dictation:"listening",writing:"writing",speaking:"speaking"})[ex&&ex.type]||"transfer";}
