@@ -211,7 +211,16 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   const main=fs.readFileSync(path.join(ROOT,"app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java"),"utf8");
   const bridge=fs.readFileSync(path.join(ROOT,"app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java"),"utf8");
   const index=fs.readFileSync(path.join(ASSETS,"index.html"),"utf8");
-  assertCheck("version-consistency",pkg.version==="14.0.2"&&gradle.includes('versionName "14.0.2"')&&main.includes('return "14.0.2"')&&bridge.includes('return activity == null ? "14.0.2"'),{pkg:pkg.version});
+  assertCheck("version-consistency",
+    pkg.version==="14.0.2" &&
+    gradle.includes("versionCode ghzVersionCode") &&
+    gradle.includes("GHZ_VERSION_CODE") &&
+    gradle.includes("autoVersionCode") &&
+    gradle.includes("versionName ghzVersionName") &&
+    gradle.includes("GHZ_VERSION_NAME") &&
+    main.includes('return "14.0.2"') &&
+    bridge.includes('return activity == null ? "14.0.2"'),
+    {pkg:pkg.version,androidVersioning:"monotonic"});
   for(const asset of ["release13-qa-core.js","release13-quality-runtime.js","release13-stage7-ui.js","release13-stage7.css"])if(!index.includes(asset))throw new Error("missing asset "+asset);
   add("stage7-assets-wired",true,{});
 
