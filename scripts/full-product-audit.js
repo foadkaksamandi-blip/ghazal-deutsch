@@ -22,12 +22,14 @@ function load(){
   const stage3Apply=stage3.apply({data,lib,dict,deep});
   const ex=require(path.join(ASSETS,"release10-exercise-engine.js"));window.GhazalExerciseEngine=ex;
   const content=require(path.join(ASSETS,"release10-content-system.js"));window.GhazalContentSystem=content;
+  const coach=require(path.join(ASSETS,"release10-offline-coach.js"));window.GhazalOfflineCoach=coach;
   const learning=require(path.join(ASSETS,"release11-learning-engine.js"));window.GhazalLearningEngine=learning;
+  const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
   const classroom=require(path.join(ASSETS,"release11-classroom-core.js"));window.GhazalClassroomCore=classroom;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   delete global.window;
-  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,learning,classroom,product,security};
+  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,coach,learning,stage4,classroom,product,security};
 }
 (async()=>{
   const x=load();
@@ -64,6 +66,14 @@ function load(){
   add("state-migration",typeof x.content.migrateState==="function"&&typeof x.product.normalize==="function",{});
   add("weekly-monthly-reporting",typeof x.content.weeklyReport==="function"&&typeof x.content.monthlyReport==="function"&&typeof x.content.evidenceReport==="function",{});
   add("adaptive-learning",["recordAttempt","buildDailyPlan","masteryGate","errorBank","rescueFor","unknownChallenge","placementSession"].every(k=>typeof x.learning[k]==="function"),{});
+  const s4f=["buildBaselineAssessment","scoreBaseline","evaluateWriting","evaluateSpeaking","evaluatePronunciation","applyAssessment","errorProfile","buildAdaptivePlan","tutorAdvice"];
+  add("stage4-private-tutor-engine",s4f.every(k=>typeof x.stage4[k]==="function"),{functions:s4f});
+  const s4session=x.stage4.buildBaselineAssessment(17),s4answers=s4session.items.map(i=>({answer:i.answer})),s4base=x.stage4.scoreBaseline(s4session,s4answers);
+  const s4writing=x.stage4.evaluateWriting("Sehr geehrte Damen und Herren. Ich möchte mich nach dem Bearbeitungsstand erkundigen, weil ich die Unterlagen bereits eingereicht habe. Bitte geben Sie mir Bescheid. Mit freundlichen Grüßen",s4base.suggestedLevel,"formelle Anfrage");
+  const s4speaking=x.stage4.evaluateSpeaking("Ich möchte kurz erklären, warum diese Lösung sinnvoll ist. Erstens spart sie Zeit. Außerdem reduziert sie Fehler. Deshalb würde ich diese Variante empfehlen.",s4base.suggestedLevel,"professionelle Erklärung");
+  const s4state=x.stage4.applyAssessment(x.stage4.defaults("audit",s4base.suggestedLevel),x.learning.initialState("audit"),s4base,s4writing,s4speaking);
+  const s4plan=x.stage4.buildAdaptivePlan(s4state.learnerProfile,x.learning.initialState("audit"),25);
+  add("stage4-private-tutor-functional",s4session.items.length===24&&s4base.completed===24&&s4writing.total>0&&s4speaking.total>0&&x.stage4.completion(s4state.learnerProfile).done===6&&s4plan.items.length>0,{baseline:s4base.suggestedLevel,writing:s4writing.total,speaking:s4speaking.total,profile:s4state.learnerProfile,planItems:s4plan.items.length});
   add("classroom-product",["createAssignment","upsertSubmission","submitAssignment","gradeSubmission","classReport","teacherDashboard","studentDashboard","serverContracts"].every(k=>typeof x.classroom[k]==="function"),{});
   const contracts=x.classroom.serverContracts();
   add("classroom-server-contracts",!!(contracts&&contracts.offlineQueue&&contracts.idempotencyRequired),contracts);
