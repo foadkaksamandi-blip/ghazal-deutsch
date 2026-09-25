@@ -149,3 +149,12 @@ test('Stage 4 runtime/UI wiring exposes every required user-facing capability',(
   assert.ok(pkg.scripts.check.includes('stage4-tutor-evaluation.js'));
   assert.ok(pkg.scripts.check.includes('stage4-tutor-ui.js'));
 });
+
+
+test('Stage 4 entry preserves locked Stage 2 practice geometry',()=>{
+  const ui=fs.readFileSync(path.join(ASSETS,'stage4-tutor-ui.js'),'utf8');
+  assert.ok(ui.includes("view.querySelector(\"[data-r11='checkpoint']\")||view.querySelector(\"[data-r11='learning']\")"));
+  assert.ok(ui.includes('lockedAnchor.insertAdjacentHTML("afterend",html)'));
+  assert.ok(ui.includes('grid.insertAdjacentHTML("beforeend",html)'));
+  assert.ok(!ui.includes('grid.insertAdjacentHTML("afterbegin"'));
+});
