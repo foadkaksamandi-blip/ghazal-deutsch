@@ -78,7 +78,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             gradle :app:connectedDebugAndroidTest --stacktrace -PGHZ_VERSION_CODE=101 -PGHZ_VERSION_NAME=14.0.3-upgrade-test
 
             adb uninstall com.foad.ghazaldeutsch.test >/dev/null 2>&1 || true
