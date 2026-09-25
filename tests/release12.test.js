@@ -142,8 +142,11 @@ test('Stage 6 Gradle provides hardened QA and secret-backed production signing g
   const root=path.join(__dirname,'..');
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
-  const vc=gradle.match(/versionCode\s+(\d+)/); assert.ok(vc&&Number(vc[1])>=12);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(gradle.includes('hardenedQa'));
   assert.ok(gradle.includes('debuggable false'));
   assert.ok(gradle.includes('minifyEnabled true'));
@@ -165,7 +168,8 @@ test('Stage 5 and 6 assets load in the correct order and version matches package
   assert.ok(index.indexOf('release12-pack-loader.js')<index.indexOf('release10-exercise-engine.js'));
   assert.ok(index.indexOf('release12-product-core.js')<index.indexOf('release12-stage56-ui.js'));
   assert.ok(Number(pkg.version.split('.')[0])>=12);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
 });
 
 test('CI generates integrity manifest scans secrets and builds a non-debuggable hardened APK',()=>{

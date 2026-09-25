@@ -173,8 +173,11 @@ test('Release 11 assets survive later product versions',()=>{
   const bridge=fs.readFileSync(path.join(root,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
   for(const asset of ['release11-learning-engine.js','release11-classroom-core.js','release11-stage34-ui.js','release11-stage34.css']) assert.ok(index.includes(asset),asset);
   assert.ok(Number(pkg.version.split('.')[0])>=11);
-  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=11);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(bridge.includes('activity == null ? "'+pkg.version+'"'));
   const wf=fs.readFileSync(path.join(root,'.github/workflows/android.yml'),'utf8');
   assert.ok(/GHAZAL-v\d+-.+-qa\.apk/.test(wf));

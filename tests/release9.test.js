@@ -43,6 +43,9 @@ test('Release 9 assets survive later version upgrades',()=>{
   const gradle=fs.readFileSync(path.join(root,'app/build.gradle'),'utf8');
   for(const asset of ['release9-specialization.js','release9-specialization-ui.js','release9-specialization.css']) assert.ok(index.includes(asset),asset);
   assert.ok(Number(pkg.version.split('.')[0])>=9);
-  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=9);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
 });

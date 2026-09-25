@@ -20,8 +20,11 @@ test('Stage 8 final core locks version package and offline privacy model',()=>{
 
 test('Stage 8 Android build is fail-closed for unsigned production releases',()=>{
   const gradle=read('app/build.gradle');
-  assert.match(gradle,/versionCode\s+16/);
-  assert.match(gradle,/versionName\s+"14\.0\.2"/);
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(gradle.includes('FINAL_RELEASE_BUILD", "true"'));
   assert.ok(gradle.includes('QA_INTERNAL_TOOLS_ENABLED", "false"'));
   assert.match(gradle,/RELEASE_CHANNEL[^\n]+production/);
@@ -106,7 +109,8 @@ test('Stage 8 package and final gate remain version-consistent',()=>{
   const qa=read('app/src/main/assets/release13-qa-core.js');
   const finalCore=read('app/src/main/assets/release14-final-core.js');
   assert.equal(pkg.version,'14.0.2');
-  assert.ok(gradle.includes('versionName "14.0.2"'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
   assert.ok(qa.includes('const VERSION="14.0.2"'));
   assert.ok(finalCore.includes('const VERSION="14.0.2"'));
 });

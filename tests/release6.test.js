@@ -18,8 +18,11 @@ test("Release 6 loads real platform assets",()=>{
 test("Release 6 platform survives later version upgrades",()=>{
   const major=Number(String(pkg.version).split(".")[0]);
   assert.ok(major>=6,"expected version >= 6");
-  const match=gradle.match(/versionCode\s+(\d+)/); assert.ok(match&&Number(match[1])>=6);
-  assert.ok(gradle.includes('versionName "'+pkg.version+'"'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
 });
 
 test("master product lock preserves core product rules",()=>{

@@ -88,6 +88,8 @@ public class MainActivity extends FragmentActivity {
     private static final String SECURITY_PREFS = "ghazal_security";
     private static final String SNAPSHOT_ALIAS = "GHAZAL_SNAPSHOT_AES_V1";
     private static final String SNAPSHOT_PREF = "secure_snapshot";
+    private static final String VERSION_PREFS = "ghazal_app_version";
+    private static final String PREF_LAST_VERSION_CODE = "last_version_code";
 
     private WebView webView;
     private TextToSpeech textToSpeech;
@@ -203,8 +205,9 @@ public class MainActivity extends FragmentActivity {
         });
 
         setContentView(webView);
+        prepareWebAssetsForCurrentVersion();
         pageReadyForTesting = false;
-        webView.loadUrl("file:///android_asset/index.html");
+        webView.loadUrl(versionedAssetUrl());
         webView.setVisibility(isAppLockEnabled() ? View.INVISIBLE : View.VISIBLE);
         appUnlocked = !isAppLockEnabled();
     }
@@ -248,6 +251,34 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    private long currentVersionCode() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) return info.getLongVersionCode();
+            //noinspection deprecation
+            return info.versionCode;
+        } catch (Exception ignored) {
+            return Math.max(1, BuildConfig.VERSION_CODE);
+        }
+    }
+
+    private String versionedAssetUrl() {
+        return "file:///android_asset/index.html?v=" + currentVersionCode();
+    }
+
+    private void prepareWebAssetsForCurrentVersion() {
+        if (webView == null) return;
+        long current = currentVersionCode();
+        SharedPreferences prefs = getSharedPreferences(VERSION_PREFS, MODE_PRIVATE);
+        long previous = prefs.getLong(PREF_LAST_VERSION_CODE, -1L);
+        if (previous != current) {
+            // Preserve WebStorage/localStorage: learner progress must survive an APK update.
+            webView.clearCache(true);
+            webView.clearHistory();
+            prefs.edit().putLong(PREF_LAST_VERSION_CODE, current).apply();
+        }
+    }
+
     WebView webViewForTesting() {
         return webView;
     }
@@ -278,7 +309,7 @@ public class MainActivity extends FragmentActivity {
         WebStorage.getInstance().deleteAllData();
         webView.clearHistory();
         webView.clearCache(true);
-        webView.loadUrl("file:///android_asset/index.html");
+        webView.loadUrl(versionedAssetUrl());
     }
 
     @Override
