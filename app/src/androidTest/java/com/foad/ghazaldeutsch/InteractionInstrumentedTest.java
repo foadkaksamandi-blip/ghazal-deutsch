@@ -194,7 +194,9 @@ public class InteractionInstrumentedTest {
         assertTrue("Daily-plan labels still expose raw English exercise types",
                 evalBool("document.getElementById('modal-content').innerText.indexOf('یادآوری')>=0 || document.getElementById('modal-content').innerText.indexOf('معنی واژه')>=0 || document.getElementById('modal-content').innerText.indexOf('جای خالی')>=0"));
 
-        physicalTap("[data-r11='plan-item']");
+        eval("(function(){var buttons=Array.from(document.querySelectorAll('#modal-content [data-r11=\"plan-item\"]'));var bank=(window.GhazalExerciseEngine&&window.GhazalExerciseEngine.exercises)||[];var b=buttons.find(function(btn){var ex=bank.find(function(x){return x.id===btn.dataset.id;});return ex && !(Array.isArray(ex.options)&&ex.options.length);});if(!b)return false;b.setAttribute('data-qa-editable-plan','true');return true;})()");
+        waitFor("!!document.querySelector('#modal-content [data-qa-editable-plan=\"true\"]')", "editable Stage 2 plan item");
+        physicalTap("#modal-content [data-qa-editable-plan='true']");
         waitFor("!!document.querySelector('[data-r11=\"back-learning\"]')", "explicit Stage 2 back button");
         waitFor("!!document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer')", "editable Stage 2 answer");
         eval("(function(){var e=document.querySelector('#r11-answer, #r11-quiz-answer, #r11-placement-answer');if(!e)return false;e.value='GHAZAL-DRAFT-42';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
