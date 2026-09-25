@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Java 17
         uses: actions/setup-java@v5
         with:
@@ -28,8 +30,37 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Compile app and instrumentation tests
-        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Build previous APK for in-place upgrade regression
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          BASE_SHA="${PR_BASE_SHA:-}"
+          if [ -z "$BASE_SHA" ]; then BASE_SHA="$(git rev-parse HEAD^)"; fi
+          BASE_DIR="$RUNNER_TEMP/ghazal-upgrade-base"
+          git worktree add --detach "$BASE_DIR" "$BASE_SHA"
+          if grep -q "GHZ_VERSION_CODE" "$BASE_DIR/app/build.gradle"; then
+            gradle -p "$BASE_DIR" :app:assembleDebug --stacktrace -PGHZ_VERSION_CODE=100 -PGHZ_VERSION_NAME=upgrade-base
+          else
+            gradle -p "$BASE_DIR" :app:assembleDebug --stacktrace
+          fi
+          mkdir -p qa/upgrade
+          OLD_APK="$(find "$BASE_DIR/app/build/outputs/apk/debug" -name '*.apk' -type f | head -n1)"
+          test -f "$OLD_APK"
+          cp "$OLD_APK" qa/upgrade/old.apk
+      - name: Compile current app and instrumentation tests
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace -PGHZ_VERSION_CODE=101 -PGHZ_VERSION_NAME=14.0.3-upgrade-test
+          cp app/build/outputs/apk/debug/app-debug.apk qa/upgrade/new.apk
+          TEST_APK="$(find app/build/outputs/apk/androidTest/debug -name '*.apk' -type f | head -n1)"
+          test -f "$TEST_APK"
+          cp "$TEST_APK" qa/upgrade/test.apk
+          OLD_CODE="$($ANDROID_HOME/build-tools/35.0.0/aapt dump badging qa/upgrade/old.apk | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -n1)"
+          NEW_CODE="$($ANDROID_HOME/build-tools/35.0.0/aapt dump badging qa/upgrade/new.apk | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -n1)"
+          printf 'oldVersionCode=%s\nnewVersionCode=%s\n' "$OLD_CODE" "$NEW_CODE" | tee qa/upgrade/version-codes.txt
+          test -n "$OLD_CODE" && test -n "$NEW_CODE"
+          test "$NEW_CODE" -gt "$OLD_CODE"
       - name: Enable KVM acceleration
         run: |
           if [ -e /dev/kvm ]; then
@@ -47,14 +78,27 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            gradle :app:connectedDebugAndroidTest --stacktrace
+            set -euo pipefail
+            gradle :app:connectedDebugAndroidTest --stacktrace -PGHZ_VERSION_CODE=101 -PGHZ_VERSION_NAME=14.0.3-upgrade-test
+
+            adb uninstall com.foad.ghazaldeutsch.test >/dev/null 2>&1 || true
+            adb uninstall com.foad.ghazaldeutsch >/dev/null 2>&1 || true
+
+            adb install qa/upgrade/old.apk
+            adb install qa/upgrade/test.apk
+            adb shell am instrument -w               -e upgradeMode seed               -e class com.foad.ghazaldeutsch.UpgradeInstrumentedTest#seedUpgradeState               com.foad.ghazaldeutsch.test/androidx.test.runner.AndroidJUnitRunner
+
+            adb install -r qa/upgrade/new.apk
+            adb install -r qa/upgrade/test.apk
+            adb shell am instrument -w               -e upgradeMode verify               -e class com.foad.ghazaldeutsch.UpgradeInstrumentedTest#verifyUpgradePreservesDataAndLoadsFreshAssets               com.foad.ghazaldeutsch.test/androidx.test.runner.AndroidJUnitRunner
       - name: Collect interaction test evidence
         if: always()
         run: |
           mkdir -p qa/interaction-device
           cp -R app/build/reports/androidTests/connected/debug qa/interaction-device/report 2>/dev/null || true
           cp -R app/build/outputs/androidTest-results/connected qa/interaction-device/results 2>/dev/null || true
-          find qa/interaction-device -maxdepth 4 -type f | sort || true
+          cp -R qa/upgrade qa/interaction-device/upgrade 2>/dev/null || true
+          find qa/interaction-device -maxdepth 5 -type f | sort || true
       - name: Upload interaction evidence
         if: always()
         uses: actions/upload-artifact@v4
