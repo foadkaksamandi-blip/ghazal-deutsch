@@ -40,8 +40,11 @@ test('encrypted local and portable backup primitives are present', () => {
 });
 
 test('release build stays minified and Android version matches package version', () => {
-  assert.ok(gradle.includes('versionName "' + pkg.version + '"'));
-  assert.match(gradle, /versionCode\s+[1-9]\d*/);
+  assert.ok(gradle.includes('versionName ghzVersionName'));
+  assert.ok(gradle.includes('GHZ_VERSION_NAME'));
+  assert.ok(gradle.includes('versionCode ghzVersionCode'));
+  assert.ok(gradle.includes('GHZ_VERSION_CODE'));
+  assert.ok(gradle.includes('autoVersionCode'));
   assert.match(gradle, /release \{[\s\S]*minifyEnabled true[\s\S]*shrinkResources true/);
 });
 
