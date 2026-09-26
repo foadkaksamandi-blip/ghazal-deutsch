@@ -25,11 +25,12 @@ function load(){
   const coach=require(path.join(ASSETS,"release10-offline-coach.js"));window.GhazalOfflineCoach=coach;
   const learning=require(path.join(ASSETS,"release11-learning-engine.js"));window.GhazalLearningEngine=learning;
   const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
+  const stage5=require(path.join(ASSETS,"stage5-exams-pathways.js"));window.GhazalStage5=stage5;
   const classroom=require(path.join(ASSETS,"release11-classroom-core.js"));window.GhazalClassroomCore=classroom;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   delete global.window;
-  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,coach,learning,stage4,classroom,product,security};
+  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,coach,learning,stage4,stage5,classroom,product,security};
 }
 (async()=>{
   const x=load();
@@ -74,6 +75,24 @@ function load(){
   const s4state=x.stage4.applyAssessment(x.stage4.defaults("audit",s4base.suggestedLevel),x.learning.initialState("audit"),s4base,s4writing,s4speaking);
   const s4plan=x.stage4.buildAdaptivePlan(s4state.learnerProfile,x.learning.initialState("audit"),25);
   add("stage4-private-tutor-functional",s4session.items.length===24&&s4base.completed===24&&s4writing.total>0&&s4speaking.total>0&&x.stage4.completion(s4state.learnerProfile).done===6&&s4plan.items.length>0,{baseline:s4base.suggestedLevel,writing:s4writing.total,speaking:s4speaking.total,profile:s4state.learnerProfile,planItems:s4plan.items.length});
+  const s5audit=x.stage5.audit();
+  add("stage5-exam-pathway-audit",s5audit.pass,s5audit);
+  add("stage5-four-exams",["goethe","telc","testdaf","osd"].every(b=>x.stage5.examTasks(b).length>=4),Object.fromEntries(["goethe","telc","testdaf","osd"].map(b=>[b,x.stage5.examTasks(b).length])));
+  add("stage5-four-purpose-pathways",["migration","university","career","alltag"].every(id=>{const p=x.stage5.pathways().find(v=>v.id===id);return p&&p.modules.length>0;}),Object.fromEntries(x.stage5.pathways().map(p=>[p.id,p.modules.length])));
+  const s5Level=x.stage5.availableLevels("testdaf")[0]||"B2";
+  let s5state=x.stage5.startMock(x.stage5.defaults("audit",s5Level),"testdaf",s5Level,"quick",31,1700000000000);
+  for(const item of s5state.activeSession.items){
+    let ans="";
+    if(item.source==="core-objective")ans=Array.isArray(item.answer)?item.answer[0]:item.answer;
+    else if(item.skill==="writing")ans="Sehr geehrte Damen und Herren. Ich möchte die Situation erklären. Außerdem nenne ich einen Grund und schlage eine Lösung vor. Vielen Dank für Ihre Rückmeldung. Mit freundlichen Grüßen";
+    else if(item.skill==="speaking")ans="Ich erkläre zuerst die Situation. Außerdem nenne ich einen wichtigen Grund. Deshalb schlage ich eine konkrete Lösung vor.";
+    s5state=x.stage5.saveMockAnswer(s5state,item.id,ans);
+  }
+  s5state=x.stage5.finishMock(s5state,1700000060000);
+  const s5result=s5state.history.at(-1);
+  add("stage5-timed-mock-functional",!!(s5result&&s5result.result&&s5result.result.score>=0&&s5result.result.score<=100&&s5result.result.official===false),s5result||{});
+  const s5ready=x.stage5.testdafReadiness(s5state.history,s4state.learnerProfile);
+  add("stage5-transparent-readiness",s5ready.score>=0&&s5ready.score<=100&&/TDN/.test(s5ready.note),s5ready);
   add("classroom-product",["createAssignment","upsertSubmission","submitAssignment","gradeSubmission","classReport","teacherDashboard","studentDashboard","serverContracts"].every(k=>typeof x.classroom[k]==="function"),{});
   const contracts=x.classroom.serverContracts();
   add("classroom-server-contracts",!!(contracts&&contracts.offlineQueue&&contracts.idempotencyRequired),contracts);
@@ -92,7 +111,7 @@ function load(){
   if(synthetic>0)gaps.push({id:"listening-humanization",status:"PARTIAL",detail:synthetic+" advanced audio drills are metadata/scripts intended for offline TTS rather than bundled human recordings."});
   gaps.push({id:"pronunciation-acoustic-scoring",status:"PARTIAL",detail:"Pronunciation content exists, but the app does not contain a phoneme/stress/rhythm/intonation acoustic scoring engine; Android speech recognition is approximate."});
   gaps.push({id:"writing-expert-feedback",status:"PARTIAL",detail:"Offline writing practice and feedback logic exist, but no full expert grammar/cohesion/register model is bundled."});
-  gaps.push({id:"official-full-exam-mocks",status:"PARTIAL",detail:"Goethe/telc/TestDaF/ÖSD task infrastructure exists, but official licensed full-length exam banks are not bundled/verified."});
+  gaps.push({id:"official-full-exam-mocks",status:"PARTIAL",detail:"Stage 5 now provides timed internal mocks, scoring, resume, strategy and readiness analysis for Goethe/telc/TestDaF/ÖSD; official licensed full-length exam papers are intentionally not bundled or claimed."});
   gaps.push({id:"online-ai-backend",status:"DEFERRED",detail:"Controlled online AI teacher, accounts, sync, subscriptions and server analytics remain intentionally unavailable until the backend phase."});
   gaps.push({id:"real-device-acceptance",status:"PENDING",detail:"Automated and emulator checks cannot replace the Stage 7 physical-device matrix for microphone, biometric/device credential, reboot reminder and file picker flows."});
   gaps.push({id:"production-signing",status:"PENDING",detail:"Permanent release signing key and certificate are external security gates; the repository must not contain them."});
@@ -110,6 +129,8 @@ function load(){
       grammar:x.lib.grammar.length,
       contrasts:x.deep.contrasts.length,
       examTasks:x.deep.exams.length,
+      stage5ExamTasks:x.stage5.examTasks().length,
+      stage5Pathways:x.stage5.pathways().length,
       searchIndex:x.content.index.length,
       humanAudioFiles:humanFiles.length
     },
