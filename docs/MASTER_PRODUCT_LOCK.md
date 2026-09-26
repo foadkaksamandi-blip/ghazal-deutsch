@@ -135,4 +135,11 @@ This section records the active execution roadmap used for device acceptance and
   - The existing `×` close control across screens is an explicitly accepted UI behavior. It is not considered a Stage 2 defect and must not be changed solely for cosmetic consistency.
   - Stage 2 learning-engine scope locked: A1–C2 lesson/exercise flow, quiz/checkpoint testing, SRS, error bank, per-skill mastery, daily plan, adaptive learning, exact resume/draft persistence, and safe migration of prior learning state.
   - Any future change to these paths must preserve the accepted touch behavior and pass the Stage 2 phone-flow instrumentation tests before merge.
-- Next execution stage: Stage 3 — complete real A1–C2 educational content.
+- Stage 3 — Complete real A1–C2 educational content: **CODE + AUTOMATED/WEBVIEW QA COMPLETE CANDIDATE**.
+- Stage 4 — Private Tutor + Evaluation: **CODE + AUTOMATED/WEBVIEW QA COMPLETE CANDIDATE**.
+- Stage 5 — Exams + Specialized Pathways: **CODE + QA CANDIDATE**.
+  - Authoritative Stage 5 surface: `stage5-exams-pathways.js` + `stage5-exams-pathways-ui.js`.
+  - Goethe / telc / TestDaF / ÖSD; timed quick/weekly/comprehensive internal mocks; exact resume; evidence-based Writing/Speaking scoring; results, weak-skill analysis and explicitly non-official TestDaF readiness.
+  - Migration / University / Career / Alltag pathways require real Writing + Speaking evidence. Legacy fixed-score Speaking UI is suppressed.
+  - Official licensed exam papers are not bundled or claimed.
+- Next execution stage after Stage 5 acceptance: Stage 6 — profiles / classes.
