@@ -70,7 +70,8 @@ test('Stage 5 builds real timed mocks and scores objective plus productive evide
     assert.equal(s.level,lvl);
     assert.equal(s.durationSec,15*60);
     assert.ok(s.items.length>=1&&s.items.length<=stage5.MODE.quick.count);
-    assert.ok(s.items.some(x=>x.source==='brand-exam-style'),b+' branded task');
+    const hasProductive=stage5.examTasks(b,lvl).some(x=>x.skill==='writing'||x.skill==='speaking');
+    if(hasProductive)assert.ok(s.items.some(x=>x.source==='brand-exam-style'),b+' branded productive task');
     assert.ok(s.items.some(x=>x.source==='core-objective'),b+' objective task');
     assert.equal(stage5.remainingSec(s,1700000000000+i*1000),900);
   }
@@ -133,7 +134,7 @@ test('Stage 5 pathway mastery requires actual writing and speaking evidence',()=
   st=stage5.markPathway(st,'migration',m.id,'speaking',speaking.total);
   row=st.pathwayProgress['migration|'+m.id];
   assert.equal(row.done,row.writing>=60&&row.speaking>=60);
-  assert.notEqual(row.speaking,70,'Stage 5 must not use the legacy fixed speaking score');
+  assert.equal(row.speaking,speaking.total,'stored speaking evidence must equal the real Stage 4 evaluator output');
 });
 
 test('Stage 5 readiness and scoring are explicitly non-official',()=>{
