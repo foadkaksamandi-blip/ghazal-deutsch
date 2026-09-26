@@ -48,21 +48,23 @@ function loadAll(){
   const platform=require(path.join(ASSETS,rel[13]));window.GhazalPlatformCore=platform;
   const learning=require(path.join(ASSETS,rel[14]));window.GhazalLearningEngine=learning;
   const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
+  const stage5=require(path.join(ASSETS,"stage5-exams-pathways.js"));window.GhazalStage5=stage5;
   const classroom=require(path.join(ASSETS,rel[15]));window.GhazalClassroomCore=classroom;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   const qa=require(path.join(ASSETS,"release13-qa-core.js"));window.GhazalQACore=qa;
   delete global.window;
-  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,coach,platform,learning,stage4,classroom,product,security,qa};
+  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,coach,platform,learning,stage4,stage5,classroom,product,security,qa};
 }
 
 function rng(seed=0x5a17c0de){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/0x100000000;};}
 function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
 (async()=>{
-  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,stage4,classroom,product,security,qa}=all;
+  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,stage4,stage5,classroom,product,security,qa}=all;
   assertCheck("stage3-content-pack",stage3.audit().pass,stage3.audit());
   assertCheck("stage4-engine-contract",["buildBaselineAssessment","scoreBaseline","evaluateWriting","evaluateSpeaking","evaluatePronunciation","applyAssessment","errorProfile","buildAdaptivePlan","tutorAdvice"].every(k=>typeof stage4[k]==="function"),{version:stage4.VERSION});
+  assertCheck("stage5-engine-contract",["examTasks","buildMock","finalizeSession","startMock","finishMock","pathways","markPathway","testdafReadiness","historySummary"].every(k=>typeof stage5[k]==="function")&&stage5.audit().pass,{version:stage5.VERSION,audit:stage5.audit()});
 
   const contentAudit=qa.contentAudit();
   assertCheck("content-full-schema",contentAudit.pass,contentAudit);
@@ -129,6 +131,25 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   const s4advice=stage4.tutorAdvice("برای گرامر امروز چه کار کنم؟",s4.learnerProfile,l4);
   const s4errors=stage4.errorProfile(l4,s4);
   assertCheck("stage4-functional-stress",diag.items.length===24&&diagResult.completed===24&&stage4.completion(s4.learnerProfile).done===6&&s4plan.items.length>0&&s4advice.answer.length>20&&s4errors.active>=0,{level:s4.learnerProfile.level,overall:s4.learnerProfile.overall,plan:s4plan.items.length,ms:Math.round(performance.now()-stage4Start)});
+  const stage5Start=performance.now();
+  let stage5Runs=0;
+  for(let i=0;i<80;i++){
+    const brands=["goethe","telc","testdaf","osd"],brand=brands[i%brands.length],levels=stage5.availableLevels(brand),level=levels[i%levels.length];
+    let st=stage5.startMock(stage5.defaults("qa-s5-"+i,level),brand,level,i+99,"quick",1700000000000+i*1000);
+    for(const item of st.activeSession.items){
+      let answer="";
+      if(item.source==="core-objective")answer=Array.isArray(item.answer)?item.answer[0]:item.answer;
+      else if(item.skill==="writing")answer="Sehr geehrte Damen und Herren. Ich möchte mein Anliegen erklären. Außerdem nenne ich einen Grund und bitte um eine kurze Rückmeldung. Mit freundlichen Grüßen";
+      else if(item.skill==="speaking")answer="Ich erkläre die Situation. Außerdem nenne ich einen Grund. Deshalb schlage ich eine konkrete Lösung vor.";
+      st=stage5.saveMockAnswer(st,item.id,answer);
+    }
+    st=stage5.finishMock(st,1700000060000+i*1000);
+    const result=st.history.at(-1);
+    if(!result||result.result.score<0||result.result.score>100||result.result.official!==false)throw new Error("stage5 mock "+i);
+    stage5Runs++;
+  }
+  const s5paths=stage5.pathways();
+  assertCheck("stage5-functional-stress",stage5Runs===80&&s5paths.length===4&&s5paths.every(p=>p.modules.length>0),{runs:stage5Runs,pathways:s5paths.map(p=>[p.id,p.modules.length]),ms:Math.round(performance.now()-stage5Start)});
 
   const classroomStart=performance.now();
   for(let n=0;n<40;n++){
