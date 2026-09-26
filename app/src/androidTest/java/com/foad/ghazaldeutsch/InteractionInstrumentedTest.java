@@ -300,4 +300,48 @@ public class InteractionInstrumentedTest {
                 evalBool("(function(){var T=window.GhazalStage4Tutor,L=window.GhazalLearningBridge.state(),S=T.defaults('device','B1');S.learnerProfile=T.mergeEvidence(L,null,null,null,S.learnerProfile);S.learnerProfile.level='B1';var p=T.buildAdaptivePlan(S.learnerProfile,L,25);return p.items.length>0&&p.estimatedMinutes<=25;})()"));
     }
 
+    @Test
+    public void stage5ExamAndPathwayFlowRunsInRealWebView() throws Exception {
+        freshFirstRun();
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry");
+        physicalTap("#view [data-s5='hub']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 5 modal");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('آزمون‌ها و مسیرهای تخصصی')>=0", "Stage 5 hub text");
+        assertTrue("Stage 5 engine missing in WebView",
+                evalBool("!!window.GhazalStage5 && window.GhazalStage5.VERSION==='5.0.0' && window.GhazalStage5.audit().pass===true"));
+
+        physicalTap("#modal-content [data-s5='exam-center']");
+        waitFor("document.querySelectorAll('#modal-content [data-s5=\"exam-brand\"]').length===4", "four exam brands");
+        physicalTap("#modal-content [data-s5='exam-brand'][data-brand='goethe']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"start-mock\"][data-mode=\"quick\"]')", "quick Goethe mock");
+        physicalTap("#modal-content [data-s5='start-mock'][data-mode='quick']");
+        waitFor("!!document.getElementById('s5-timer')", "Stage 5 mock timer");
+        waitFor("(function(){try{var x=JSON.parse(localStorage.getItem('ghazal_stage5_v1_device')||'{}');return !!(x.activeSession&&x.activeSession.status==='active'&&x.activeSession.items&&x.activeSession.items.length>0);}catch(e){return false;}})()", "persisted Stage 5 active mock");
+
+        physicalTap("#modal-content [data-s5='close']");
+        waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
+        SystemClock.sleep(650L);
+        physicalTap("#view [data-s5='hub']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 resume shortcut");
+        physicalTap("#modal-content [data-s5='resume']");
+        waitFor("!!document.getElementById('s5-timer')", "Stage 5 exact resume");
+        assertTrue("Stage 5 resume lost its session",
+                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.answers&&x.activeSession.index>=0);})()"));
+
+        physicalTap("#modal-content [data-s5='close']");
+        waitFor("document.getElementById('modal').hidden===true", "Stage 5 resume close");
+        SystemClock.sleep(650L);
+        physicalTap("#view [data-s5='hub']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"path-center\"]')", "Stage 5 pathway center");
+        physicalTap("#modal-content [data-s5='path-center']");
+        waitFor("document.querySelectorAll('#modal-content [data-s5=\"path\"]').length===4", "four Stage 5 pathways");
+        assertTrue("Stage 5 pathways do not contain real modules",
+                evalBool("window.GhazalStage5.pathways().every(function(p){return p.modules.length>0;})"));
+    }
+
+
 }
