@@ -72,6 +72,7 @@
   });
 
   function inject(){
+    if(window.GhazalStage5)return;
     const grid=view.querySelector(".skill-grid");
     if(grid&&!view.querySelector("[data-r9='hub']"))grid.insertAdjacentHTML("beforeend",'<button class="card skill-card os-accent" data-r9="hub"><span class="big-icon">🎯</span><strong>مسیرهای تخصصی</strong><small>Migration، Career، University، Exam Academy + Collocations.</small></button>');
   }
