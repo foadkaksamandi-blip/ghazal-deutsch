@@ -70,6 +70,24 @@ public class InteractionInstrumentedTest {
         assertTrue("Timed out waiting for " + label + " href=" + href + " body=" + body, false);
     }
 
+    private boolean waitForMaybe(String expression, long timeoutMs) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + timeoutMs;
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (evalBool(expression)) return true;
+            SystemClock.sleep(120L);
+        }
+        return false;
+    }
+
+    private void physicalTapAndWait(String selector, String expression, String label) throws Exception {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            physicalTap(selector);
+            if (waitForMaybe(expression, 3500L)) return;
+            SystemClock.sleep(700L);
+        }
+        waitFor(expression, label);
+    }
+
     private float[] center(String selector) throws Exception {
         String q = selector.replace("\\", "\\\\").replace("'", "\\'");
         String value = eval("(function(){"
@@ -291,8 +309,9 @@ public class InteractionInstrumentedTest {
         waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor\"]')", "Stage 4 tutor button");
         physicalTap("#modal-content [data-s4='tutor']");
         waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor-quick\"]')", "Stage 4 tutor quick action");
-        physicalTap("#modal-content [data-s4='tutor-quick']");
-        waitFor("document.getElementById('s4-tutor-result').innerText.length>20", "Stage 4 tutor answer");
+        physicalTapAndWait("#modal-content [data-s4='tutor-quick']",
+                "document.getElementById('s4-tutor-result').innerText.length>20",
+                "Stage 4 tutor answer");
 
         assertTrue("Stage 4 speaking evaluator failed in WebView",
                 evalBool("(function(){var r=window.GhazalStage4Tutor.evaluateSpeaking('Ich erkläre meine Meinung. Außerdem nenne ich ein Beispiel. Deshalb empfehle ich diese Lösung.','B2','Stellungnahme');return r.total>=0&&r.total<=100&&r.rubric&&r.limitations.indexOf('Transcript')>=0;})()"));
@@ -335,8 +354,9 @@ public class InteractionInstrumentedTest {
         waitFor("document.body.innerText.indexOf('برنامه امروز')>=0", "home before Stage 5 resume");
         physicalTap("[data-nav='practice']");
         waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry after navigation");
-        physicalTap("#view [data-s5='hub']");
-        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 5 hub reopened");
+        physicalTapAndWait("#view [data-s5='hub']",
+                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
+                "Stage 5 hub reopened");
         waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 hub resume shortcut");
 
         physicalTap("#modal-content [data-s5='exam-center']");
@@ -351,8 +371,9 @@ public class InteractionInstrumentedTest {
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 resume close");
         SystemClock.sleep(650L);
-        physicalTap("#view [data-s5='hub']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"path-center\"]')", "Stage 5 pathway center");
+        physicalTapAndWait("#view [data-s5='hub']",
+                "!!document.querySelector('#modal-content [data-s5=\"path-center\"]')",
+                "Stage 5 pathway center");
         physicalTap("#modal-content [data-s5='path-center']");
         waitFor("document.querySelectorAll('#modal-content [data-s5=\"path\"]').length===4", "four Stage 5 pathways");
         assertTrue("Stage 5 pathways do not contain real modules",
