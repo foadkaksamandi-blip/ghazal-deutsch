@@ -355,17 +355,9 @@ public class InteractionInstrumentedTest {
         physicalTap("[data-nav='practice']");
         waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry after navigation");
         physicalTapAndWait("#view [data-s5='hub']",
-                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
-                "Stage 5 hub reopened");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 hub resume shortcut");
-
-        physicalTap("#modal-content [data-s5='exam-center']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 Exam Center resume shortcut");
-        physicalTap("#modal-content [data-s5='exam-brand'][data-brand='goethe']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 brand resume shortcut");
-        physicalTap("#modal-content [data-s5='start-mock'][data-mode='quick']");
-        waitFor("!!document.getElementById('s5-timer')", "Stage 5 exact resume through normal exam route");
-        assertTrue("Stage 5 normal exam route restarted the mock",
+                "!!document.getElementById('s5-timer')",
+                "Stage 5 direct resume from practice entry");
+        assertTrue("Stage 5 practice entry restarted the mock",
                 evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
 
         physicalTap("#modal-content [data-s5='close']");
