@@ -16,17 +16,22 @@
   function native(method,...args){try{if(window.GhazalAndroid&&typeof window.GhazalAndroid[method]==="function")return window.GhazalAndroid[method](...args);}catch(_){}}
   function stopTimer(){if(timerHandle){clearInterval(timerHandle);timerHandle=null;}}
   function open(html){stopTimer();modal.dataset.locked="false";box.innerHTML=html;modal.hidden=false;box.scrollTop=0;}
-  function close(){stopTimer();speechTarget=null;activePathModule=null;modal.hidden=true;box.innerHTML="";modal.dataset.locked="false";native("stopSpeaking");}
+  function close(){try{persistTextarea();}catch(_){}stopTimer();speechTarget=null;activePathModule=null;modal.hidden=true;box.innerHTML="";modal.dataset.locked="false";native("stopSpeaking");}
   function head(tag,title,sub,home){
     return '<div class="sheet-handle"></div><div class="sheet-head"><div><span class="level-badge">'+h(tag)+'</span><h2>'+h(title)+'</h2><p>'+h(sub||"")+'</p></div>'+
       '<button class="close-button" data-s5="'+(home?"hub":"close")+'">'+(home?"⌂":"×")+'</button></div>';
   }
   function skillFa(k){return S.SKILL_FA[k]||k;}
   function resultBadge(n){return n>=80?"قوی":n>=65?"خوب":n>=50?"در حال تثبیت":"نیازمند تقویت";}
+  function resumeCard(st){
+    const s=st&&st.activeSession;if(!s)return "";
+    const mode=S.MODE[s.mode]&&S.MODE[s.mode].fa||s.mode;
+    return '<button class="s5-card s5-resume" data-s5="resume"><strong>▶ ادامه Mock نیمه‌تمام</strong><small>'+h(s.brandName+" · "+s.level+" · "+mode+" · سؤال "+(s.index+1)+" از "+s.items.length)+'</small></button>';
+  }
 
   function hub(){
     const st=state(),rec=S.nextRecommendation(st,(window.GhazalStage4Tutor&&function(){try{return window.GhazalStage4Tutor.readStorage(localStorage,"device",level()).learnerProfile;}catch(_){return null;}})());
-    const resume=st.activeSession?'<button class="s5-card s5-resume" data-s5="resume"><strong>▶ ادامه Mock نیمه‌تمام</strong><small>'+h(st.activeSession.brandName+" · "+st.activeSession.level+" · سؤال "+(st.activeSession.index+1)+" از "+st.activeSession.items.length)+'</small></button>':"";
+    const resume=resumeCard(st);
     open(head("مرحله ۵","آزمون‌ها و مسیرهای تخصصی","چهار آزمون + Mock زمان‌دار + مسیر مهاجرت، دانشگاه، کار و زندگی واقعی.",false)+
       resume+
       '<div class="s5-grid">'+
@@ -42,6 +47,7 @@
   function examCenter(){
     const st=state();
     open(head("Exam Center","چهار مسیر آزمون","سطح و نوع Mock را انتخاب کن. ساختار این بخش برای تمرین است، نه شبیه‌سازی رسمی دارای مجوز.",true)+
+      resumeCard(st)+
       '<div class="s5-grid">'+Object.values(S.EXAMS).map(ex=>{
         const levels=S.availableLevels(ex.id),count=S.examTasks(ex.id).length,last=[...st.history].reverse().find(x=>x.brand===ex.id);
         return '<button class="s5-card" data-s5="exam-brand" data-brand="'+ex.id+'"><strong>'+h(ex.name)+' · '+h(ex.fa)+'</strong><small>'+h(ex.focus)+'</small><span class="s5-meta">'+levels.join(" · ")+' · '+count+' تمرین سبک آزمون'+(last?' · آخرین '+last.result.score+'%':"")+'</span></button>';
@@ -51,8 +57,8 @@
   function examBrand(brand){
     selectedBrand=S.brandId(brand);const ex=S.EXAMS[selectedBrand];if(!ex)return examCenter();
     const levels=S.availableLevels(selectedBrand);if(!selectedLevel||!levels.includes(selectedLevel))selectedLevel=levels.includes(level())?level():levels[0];
-    const tasks=S.examTasks(selectedBrand,selectedLevel),str=S.STRATEGIES[selectedBrand];
-    open(head(ex.name,ex.fa+" · "+selectedLevel,ex.focus,true)+
+    const tasks=S.examTasks(selectedBrand,selectedLevel),str=S.STRATEGIES[selectedBrand],st=state();
+    open(head(ex.name,ex.fa+" · "+selectedLevel,ex.focus,true)+resumeCard(st)+
       '<div class="s5-levels">'+levels.map(l=>'<button class="'+(l===selectedLevel?"on":"")+'" data-s5="exam-level" data-level="'+l+'">'+l+'</button>').join("")+'</div>'+
       '<div class="s5-mode-grid">'+Object.values(S.MODE).map(m=>'<button class="s5-mode" data-s5="start-mock" data-mode="'+m.id+'"><b>'+h(m.fa)+'</b><span>'+m.minutes+' دقیقه · تا '+m.count+' سؤال/فعالیت</span></button>').join("")+'</div>'+
       '<div class="s5-section"><h3>نمونه تمرین‌های تألیفی این مسیر</h3><div class="s5-list">'+
@@ -80,7 +86,13 @@
   }
 
   function startMock(mode){
-    let st=state();st=S.startMock(st,selectedBrand,selectedLevel,mode,Date.now()%100000,Date.now());save(st);mockPage();
+    let st=state();
+    if(st.activeSession){
+      selectedBrand=st.activeSession.brand;
+      selectedLevel=st.activeSession.level;
+      return mockPage();
+    }
+    st=S.startMock(st,selectedBrand,selectedLevel,mode,Date.now()%100000,Date.now());save(st);mockPage();
   }
   function resumeMock(){const st=state();if(!st.activeSession)return hub();selectedBrand=st.activeSession.brand;selectedLevel=st.activeSession.level;mockPage();}
   function currentItem(st){return st.activeSession&&st.activeSession.items[st.activeSession.index];}
