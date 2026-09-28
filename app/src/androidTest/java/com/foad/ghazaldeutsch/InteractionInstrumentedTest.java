@@ -327,8 +327,16 @@ public class InteractionInstrumentedTest {
 
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
+        assertTrue("Stage 5 close lost the active mock",
+                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
+
         SystemClock.sleep(650L);
+        physicalTap("[data-nav='home']");
+        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0", "home before Stage 5 resume");
+        physicalTap("[data-nav='practice']");
+        waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry after navigation");
         physicalTap("#view [data-s5='hub']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 5 hub reopened");
         waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 hub resume shortcut");
 
         physicalTap("#modal-content [data-s5='exam-center']");
