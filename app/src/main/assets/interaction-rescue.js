@@ -173,14 +173,21 @@
       return false;
     }
     if(recent&&!recent.isConnected){
-      native("recordUiInteraction","native-clear:detached-physical-target");
+      // The originally touched control disappeared, which means the DOM already
+      // transitioned. Never retarget the delayed native fallback onto whatever
+      // new control now occupies the same coordinates.
+      native("recordUiInteraction","native-skip:detached-physical-target");
       lastPhysicalTarget=null;
       lastPhysicalTargetAt=0;
-      recent=null;
+      return false;
     }
+    const originalTarget=interactive(recent);
     const liveTarget=immediateLiveTarget||candidateFromPoint(lastNativeX,lastNativeY);
     const cachedTarget=liveTarget?null:candidateFromCachedMap(lastNativeX,lastNativeY);
-    const target=liveTarget||cachedTarget||interactive(recent);
+    // Prefer the control that actually received ACTION_DOWN. This prevents a
+    // delayed fallback from clicking a newly opened modal/backdrop at the same
+    // screen coordinates.
+    const target=originalTarget||liveTarget||cachedTarget;
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
