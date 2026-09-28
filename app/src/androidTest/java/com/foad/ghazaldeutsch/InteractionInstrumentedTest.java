@@ -259,8 +259,9 @@ public class InteractionInstrumentedTest {
 
         physicalTap("[data-nav='practice']");
         waitFor("!!document.querySelector('#view [data-r11=\"checkpoint\"]')", "direct checkpoint shortcut");
-        physicalTap("#view [data-r11='checkpoint']");
-        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "direct checkpoint modal");
+        physicalTapAndWait("#view [data-r11='checkpoint']",
+                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
+                "direct checkpoint modal");
         waitFor("document.getElementById('modal-content').innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "direct checkpoint first question");
         assertTrue("Direct checkpoint did not use explicit Stage 2 back navigation",
                 evalBool("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')"));
@@ -355,9 +356,13 @@ public class InteractionInstrumentedTest {
         physicalTap("[data-nav='practice']");
         waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry after navigation");
         physicalTapAndWait("#view [data-s5='hub']",
+                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
+                "Stage 5 hub reopened");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 hub resume shortcut");
+        physicalTapAndWait("#modal-content [data-s5='resume']",
                 "!!document.getElementById('s5-timer')",
-                "Stage 5 direct resume from practice entry");
-        assertTrue("Stage 5 practice entry restarted the mock",
+                "Stage 5 resumed mock");
+        assertTrue("Stage 5 resume lost question index",
                 evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
 
         physicalTap("#modal-content [data-s5='close']");
