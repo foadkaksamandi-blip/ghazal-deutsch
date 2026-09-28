@@ -221,7 +221,10 @@
   });
   document.addEventListener("click",e=>{
     const t=e.target.closest("[data-s5]");if(!t)return;const a=t.dataset.s5;
-    if(a==="close")close();else if(a==="hub")hub();
+    if(a==="close")close();else if(a==="hub"){
+      if(t.classList.contains("s5-entry")&&state().activeSession)resumeMock();
+      else hub();
+    }
     else if(a==="exam-center")examCenter();else if(a==="exam-brand")examBrand(t.dataset.brand);
     else if(a==="exam-level"){selectedLevel=t.dataset.level;examBrand(selectedBrand);}else if(a==="start-mock")startMock(t.dataset.mode);
     else if(a==="resume")resumeMock();else if(a==="task")taskPage(t.dataset.id);else if(a==="score-task")scoreTask();
