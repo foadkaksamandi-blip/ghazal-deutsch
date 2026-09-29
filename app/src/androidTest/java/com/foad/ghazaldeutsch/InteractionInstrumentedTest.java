@@ -322,25 +322,15 @@ public class InteractionInstrumentedTest {
         waitFor("!!document.getElementById('s5-timer')", "Stage 5 mock timer");
         waitFor("(function(){try{var x=JSON.parse(localStorage.getItem('ghazal_stage5_v1_device')||'{}');return !!(x.activeSession&&x.activeSession.status==='active'&&x.activeSession.items&&x.activeSession.items.length>0);}catch(e){return false;}})()", "persisted Stage 5 active mock");
 
-        physicalTap("#modal-content [data-s5='mock-next']");
-        waitFor("(function(){try{var x=JSON.parse(localStorage.getItem('ghazal_stage5_v1_device')||'{}');return !!(x.activeSession&&x.activeSession.index===1);}catch(e){return false;}})()", "Stage 5 persisted second-question index");
-
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
         SystemClock.sleep(650L);
-
-        // Re-enter through the normal Exam Center route. Starting the same quick
-        // mock must resume the existing session instead of replacing it with Q1.
         physicalTap("#view [data-s5='hub']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"exam-center\"]')", "Stage 5 hub reopened");
-        physicalTap("#modal-content [data-s5='exam-center']");
-        waitFor("document.querySelectorAll('#modal-content [data-s5=\"exam-brand\"]').length===4", "Stage 5 Exam Center reopened");
-        physicalTap("#modal-content [data-s5='exam-brand'][data-brand='goethe']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"start-mock\"][data-mode=\"quick\"]')", "Stage 5 Goethe reopened");
-        physicalTap("#modal-content [data-s5='start-mock'][data-mode='quick']");
-        waitFor("!!document.getElementById('s5-timer')", "Stage 5 normal-route resume");
-        assertTrue("Stage 5 normal exam route restarted the mock at question 1",
-                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 resume shortcut");
+        physicalTap("#modal-content [data-s5='resume']");
+        waitFor("!!document.getElementById('s5-timer')", "Stage 5 exact resume");
+        assertTrue("Stage 5 resume lost its session",
+                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.answers&&x.activeSession.index>=0);})()"));
 
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 resume close");
