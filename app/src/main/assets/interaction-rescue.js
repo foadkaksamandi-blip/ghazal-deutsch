@@ -10,8 +10,7 @@
     "[data-nav]",
     "[data-os-action]",
     "[data-r3]","[data-r4]","[data-r5]","[data-r6]","[data-r7]","[data-r8]",
-    "[data-r9]","[data-r10]","[data-r11]","[data-r12]","[data-r13]","[data-r14]",
-    "[data-s4]","[data-s5]"
+    "[data-r9]","[data-r10]","[data-r11]","[data-r12]","[data-r13]","[data-r14]"
   ].join(",");
 
   let lastBrowserActivationAt=0;
@@ -42,7 +41,7 @@
   function isCloseTarget(target){
     if(!target||!target.dataset)return false;
     if(target.dataset.action==="close-modal")return true;
-    for(const key of ["r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","s4","s5"]){
+    for(const key of ["r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"]){
       if(target.dataset[key]==="close")return true;
     }
     return false;
@@ -59,7 +58,7 @@
   }
   function descriptor(target){
     if(!target)return "";
-    const keys=["action","nav","osAction","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","s4","s5"];
+    const keys=["action","nav","osAction","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"];
     for(const key of keys)if(target.dataset&&target.dataset[key])return key+":"+target.dataset[key];
     if(target.id)return "id:"+target.id;
     return (target.tagName||"control").toLowerCase();
@@ -70,7 +69,7 @@
     if(split<0)return null;
     const key=id.slice(0,split),value=id.slice(split+1);
     if(key==="id")return document.getElementById(value);
-    const map={action:"data-action",nav:"data-nav",osAction:"data-os-action",r3:"data-r3",r4:"data-r4",r5:"data-r5",r6:"data-r6",r7:"data-r7",r8:"data-r8",r9:"data-r9",r10:"data-r10",r11:"data-r11",r12:"data-r12",r13:"data-r13",r14:"data-r14",s4:"data-s4",s5:"data-s5"};
+    const map={action:"data-action",nav:"data-nav",osAction:"data-os-action",r3:"data-r3",r4:"data-r4",r5:"data-r5",r6:"data-r6",r7:"data-r7",r8:"data-r8",r9:"data-r9",r10:"data-r10",r11:"data-r11",r12:"data-r12",r13:"data-r13",r14:"data-r14"};
     const attr=map[key];
     if(!attr)return null;
     try{return document.querySelector("["+attr+"="+JSON.stringify(String(value))+"]");}
@@ -173,21 +172,14 @@
       return false;
     }
     if(recent&&!recent.isConnected){
-      // The originally touched control disappeared, which means the DOM already
-      // transitioned. Never retarget the delayed native fallback onto whatever
-      // new control now occupies the same coordinates.
-      native("recordUiInteraction","native-skip:detached-physical-target");
+      native("recordUiInteraction","native-clear:detached-physical-target");
       lastPhysicalTarget=null;
       lastPhysicalTargetAt=0;
-      return false;
+      recent=null;
     }
-    const originalTarget=interactive(recent);
     const liveTarget=immediateLiveTarget||candidateFromPoint(lastNativeX,lastNativeY);
     const cachedTarget=liveTarget?null:candidateFromCachedMap(lastNativeX,lastNativeY);
-    // Prefer the control that actually received ACTION_DOWN. This prevents a
-    // delayed fallback from clicking a newly opened modal/backdrop at the same
-    // screen coordinates.
-    const target=originalTarget||liveTarget||cachedTarget;
+    const target=liveTarget||cachedTarget||interactive(recent);
     if(!target){
       native("recordUiInteraction","native-miss:"+Math.round(lastNativeX)+","+Math.round(lastNativeY));
       return false;
@@ -294,7 +286,7 @@
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.4.1",
+    VERSION:"2.4.0",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
