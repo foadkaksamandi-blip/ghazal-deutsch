@@ -9,7 +9,7 @@ const UI_FILES=[
   "index.html","app.js","os-extension.js","release3-extension.js","release4-extension.js",
   "release4-navigation.js","release5-extension.js","release6-platform.js","release7-library-ui.js",
   "release8-content-depth-ui.js","release9-specialization-ui.js","release10-stage2-ui.js",
-  "release11-stage34-ui.js","release12-stage56-ui.js","release13-stage7-ui.js","release14-final-ui.js",
+  "release11-stage34-ui.js","stage6-profiles-classes-ui.js","release12-stage56-ui.js","release13-stage7-ui.js","release14-final-ui.js",
   "interaction-rescue.js"
 ];
 const source={};

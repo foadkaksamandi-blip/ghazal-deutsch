@@ -23,14 +23,16 @@ function load(){
   const ex=require(path.join(ASSETS,"release10-exercise-engine.js"));window.GhazalExerciseEngine=ex;
   const content=require(path.join(ASSETS,"release10-content-system.js"));window.GhazalContentSystem=content;
   const coach=require(path.join(ASSETS,"release10-offline-coach.js"));window.GhazalOfflineCoach=coach;
+  const platform=require(path.join(ASSETS,"platform-core.js"));window.GhazalPlatformCore=platform;
   const learning=require(path.join(ASSETS,"release11-learning-engine.js"));window.GhazalLearningEngine=learning;
   const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
   const stage5=require(path.join(ASSETS,"stage5-exams-pathways.js"));window.GhazalStage5=stage5;
   const classroom=require(path.join(ASSETS,"release11-classroom-core.js"));window.GhazalClassroomCore=classroom;
+  const stage6=require(path.join(ASSETS,"stage6-profiles-classes.js"));window.GhazalStage6=stage6;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   delete global.window;
-  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,coach,learning,stage4,stage5,classroom,product,security};
+  return{data,lib,dict,deep,spec,adv,stage3,stage3Apply,ex,content,coach,platform,learning,stage4,stage5,classroom,stage6,product,security};
 }
 (async()=>{
   const x=load();
@@ -40,6 +42,7 @@ function load(){
   const byDict=countBy(x.dict.all,"level"),byPron=countBy(x.adv.pronunciation,"level"),byExamLevel=countBy(x.deep.exams,"level"),byExamBrand=countBy(x.deep.exams,"exam");
 
   add("stage3-pack-audit",x.stage3&&x.stage3.audit().pass,{audit:x.stage3&&x.stage3.audit(),applied:x.stage3Apply});
+  add("stage6-profiles-classes",x.stage6&&x.stage6.audit().pass,{audit:x.stage6&&x.stage6.audit()});
   add("lessons-commercial-scale",x.data.lessons.length>=240,{count:x.data.lessons.length});
   add("exercises-commercial-scale",x.ex.exercises.length>=5000,{count:x.ex.exercises.length});
   add("all-cefr-lessons",LEVELS.every(l=>(byLesson[l]||0)>=40),byLesson);
@@ -131,6 +134,7 @@ function load(){
       examTasks:x.deep.exams.length,
       stage5ExamTasks:x.stage5.examTasks().length,
       stage5Pathways:x.stage5.pathways().length,
+      stage6Version:x.stage6.VERSION,
       searchIndex:x.content.index.length,
       humanAudioFiles:humanFiles.length
     },

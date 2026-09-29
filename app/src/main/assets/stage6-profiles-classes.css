@@ -1,0 +1,18 @@
+.s6-entry{border-color:rgba(212,175,55,.45)!important}
+.s6-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.s6-card{border:1px solid var(--line);background:var(--card);color:inherit;border-radius:18px;padding:14px;text-align:right}
+.s6-card strong{display:block;margin-bottom:5px}.s6-card small{display:block;color:var(--muted);line-height:1.7}
+.s6-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.s6-kpis>div{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:14px;padding:10px;text-align:center}
+.s6-kpis b{display:block;font-size:16px}.s6-kpis span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.s6-list{display:grid;gap:8px}.s6-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:14px;padding:11px}
+.s6-row strong{display:block}.s6-row small{display:block;color:var(--muted);margin-top:3px;line-height:1.55}
+.s6-button-row{width:100%;color:inherit;text-align:right}.s6-input,.s6-textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:14px;padding:12px 13px;font:inherit;margin-top:7px}
+.s6-textarea{min-height:105px;resize:vertical}.s6-label{display:block;color:var(--muted);font-size:11px;margin:10px 2px 2px}
+.s6-code{font-family:monospace;direction:ltr;letter-spacing:1.3px}
+.s6-note,.s6-answer{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:14px;padding:11px;line-height:1.8}
+.s6-answer p{margin:7px 0}.s6-answer small{color:var(--muted)}
+.s6-empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}
+.s6-join{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.s6-rubrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}.s6-rubrics label{font-size:10px;color:var(--muted)}
+@media(max-width:390px){.s6-grid,.s6-rubrics{grid-template-columns:1fr}.s6-kpis{grid-template-columns:1fr 1fr 1fr}}

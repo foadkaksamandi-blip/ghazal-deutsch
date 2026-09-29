@@ -17,6 +17,7 @@ const main=read("app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java");
 const bridge=read("app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java");
 const releaseWorkflow=read(".github/workflows/release-android.yml");
 const qaUi=read("app/src/main/assets/release13-stage7-ui.js");
+const stage6Core=read("app/src/main/assets/stage6-profiles-classes.js");
 const finalCore=read("app/src/main/assets/release14-final-core.js");
 const finalUi=read("app/src/main/assets/release14-final-ui.js");
 
@@ -40,6 +41,7 @@ check("offline-no-internet",!manifest.includes("android.permission.INTERNET"));
 check("cleartext-disabled",manifest.includes('android:usesCleartextTraffic="false"'));
 check("backup-disabled",manifest.includes('android:allowBackup="false"'));
 check("audio-capture-disabled",manifest.includes('android:allowAudioPlaybackCapture="false"'));
+check("stage6-assets-wired",["stage6-profiles-classes.js","stage6-profiles-classes-ui.js","stage6-profiles-classes.css"].every(x=>index.includes(x))&&stage6Core.includes('const VERSION="6.0.0"'));
 check("final-assets-wired",["release14-final-core.js","release14-final-ui.js","release14-final.css"].every(x=>index.includes(x)));
 check("final-core-version",finalCore.includes('const VERSION="14.0.2"')&&finalCore.includes('const VERSION_CODE=16'));
 check("final-core-package",finalCore.includes('const PACKAGE_ID="com.foad.ghazaldeutsch"'));

@@ -338,5 +338,38 @@ public class InteractionInstrumentedTest {
                 evalBool("window.GhazalStage5.pathways().every(function(p){return p.modules.length>0;})"));
     }
 
+    @Test
+    public void stage6ProfilesAndClassesFlowRunsInRealWebView() throws Exception {
+        freshFirstRun();
+        physicalTap("[data-action='skip-placement']");
+        waitFor("JSON.parse(localStorage.getItem('ghazal_deutsch_state_v1')||'{}').onboardingDone===true", "onboarding completion");
+
+        physicalTap("[data-nav='profile']");
+        waitFor("!!document.querySelector('#view [data-r6=\"stage6-hub\"]')", "Stage 6 entry");
+        physicalTap("#view [data-r6='stage6-hub']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "Stage 6 modal");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('پروفایل‌ها و کلاس‌ها')>=0", "Stage 6 hub text");
+        assertTrue("Stage 6 engine missing in WebView",
+                evalBool("!!window.GhazalStage6 && window.GhazalStage6.VERSION==='6.0.0' && window.GhazalStage6.audit().pass===true"));
+
+        physicalTap("#modal-content [data-r6='s6-profiles']");
+        waitFor("!!document.getElementById('s6-name')", "Stage 6 profiles form");
+        eval("(function(){document.getElementById('s6-name').value='Teacher Device';document.getElementById('s6-user').value='teacher-device';document.getElementById('s6-role').value='teacher';return true;})()");
+        physicalTap("#modal-content [data-r6='s6-create-profile']");
+        waitFor("(function(){try{var s=JSON.parse(localStorage.getItem('ghazal_platform_v1')||'{}');return s.profiles&&s.profiles.length===1&&s.profiles[0].role==='teacher'&&s.activeProfileId===s.profiles[0].id;}catch(e){return false;}})()", "Stage 6 teacher profile persisted");
+
+        physicalTap("#modal-content [data-r6='s6-hub']");
+        waitFor("!!document.querySelector('#modal-content [data-r6=\"s6-workspace\"]')", "Stage 6 workspace button");
+        physicalTap("#modal-content [data-r6='s6-workspace']");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('Teacher Workspace')>=0", "Stage 6 teacher workspace");
+        physicalTap("#modal-content [data-r6='s6-new-class']");
+        waitFor("!!document.getElementById('s6-class-name')", "Stage 6 class form");
+        eval("document.getElementById('s6-class-name').value='A1 Device Class'");
+        physicalTap("#modal-content [data-r6='s6-save-class']");
+        waitFor("(function(){try{var s=JSON.parse(localStorage.getItem('ghazal_platform_v1')||'{}');return s.classes&&s.classes.length===1&&/^GHZ/.test(s.classes[0].code||'');}catch(e){return false;}})()", "Stage 6 class persisted");
+        assertTrue("Stage 6 incorrectly claims cross-device sync",
+                evalBool("window.GhazalStage6.serverReadiness(window.GhazalStage6.readStorage(localStorage)).crossDeviceSync===false"));
+    }
+
 
 }
