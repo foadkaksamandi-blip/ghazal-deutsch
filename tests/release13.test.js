@@ -16,7 +16,7 @@ class FakeStorage{
 
 function loadAll(){
   const root=path.join(__dirname,'../app/src/main/assets');
-  const files=['course-data.js','release4-content.js','release5-content.js','release7-content.js','release10-capstone-content.js','release7-library.js','release8-dictionary.js','release8-deep-library.js','release9-specialization.js','release10-advanced-content.js','release10-exercise-engine.js','release10-content-system.js','platform-core.js','release11-learning-engine.js','release11-classroom-core.js','release12-product-core.js','release12-security-core.js','release13-qa-core.js'];
+  const files=['course-data.js','release4-content.js','release5-content.js','release7-content.js','release10-capstone-content.js','release7-library.js','release8-dictionary.js','release8-deep-library.js','release9-specialization.js','release10-advanced-content.js','release10-exercise-engine.js','release10-content-system.js','platform-core.js','release11-learning-engine.js','release11-classroom-core.js','stage6-profiles-classes.js','release12-product-core.js','release12-security-core.js','release13-qa-core.js'];
   files.forEach(f=>{try{delete require.cache[require.resolve(path.join(root,f))];}catch(_){}});
   const data=require(path.join(root,files[0]));
   global.window={GhazalData:data};
@@ -31,11 +31,12 @@ function loadAll(){
   const platform=require(path.join(root,files[12]));window.GhazalPlatformCore=platform;
   const learning=require(path.join(root,files[13]));window.GhazalLearningEngine=learning;
   const classroom=require(path.join(root,files[14]));window.GhazalClassroomCore=classroom;
-  const product=require(path.join(root,files[15]));window.GhazalProductCore=product;
-  const security=require(path.join(root,files[16]));window.GhazalSecurityCore=security;
-  const qa=require(path.join(root,files[17]));
+  const stage6=require(path.join(root,files[15]));window.GhazalStage6=stage6;
+  const product=require(path.join(root,files[16]));window.GhazalProductCore=product;
+  const security=require(path.join(root,files[17]));window.GhazalSecurityCore=security;
+  const qa=require(path.join(root,files[18]));
   delete global.window;
-  return{data,dict,exercises,content,platform,learning,classroom,product,security,qa};
+  return{data,dict,exercises,content,platform,learning,classroom,stage6,product,security,qa};
 }
 
 test('Stage 7 defines a real manual device matrix with critical release cases',()=>{
@@ -72,6 +73,15 @@ test('Stage 7 runtime error ledger is bounded and release evidence is serializab
   assert.equal(evidence.format,'ghazal-stage7-qa-evidence-v1');
   assert.equal(evidence.version,qa.VERSION);
   assert.ok(JSON.stringify(evidence).length>100);
+});
+
+test('Stage 7 automated core explicitly audits the current Stage 6 surface',()=>{
+  const {qa}=loadAll();
+  const r=qa.stage6Audit();
+  assert.equal(r.pass,true,JSON.stringify(r));
+  assert.equal(r.version,'6.0.0');
+  assert.equal(r.ready.crossDeviceSync,false);
+  assert.equal(r.ready.currentScope,'same-device-offline');
 });
 
 test('Stage 7 automated core audits content storage product and security without modifying user data',async()=>{
