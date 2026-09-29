@@ -1,5 +1,7 @@
 # GHAZAL — Current Execution Stage 5
 
+Status: DEVICE ACCEPTED / LOCKED
+
 ## Scope
 Stage 5 in the active nine-stage execution roadmap is **Exams + Specialized Pathways**.
 
@@ -50,3 +52,6 @@ Stage 5 must not regress:
 - offline/no-INTERNET-permission product rule
 
 Legacy specialization UI is no longer injected when Stage 5 is present because its historical Speaking path used a fixed score. Stage 5 is the authoritative user-facing specialization/exam surface.
+
+
+Device acceptance confirmed that closing an unfinished Mock preserves the active session/current question and returning does not restart the Mock from question 1.

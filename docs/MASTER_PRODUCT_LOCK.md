@@ -137,9 +137,14 @@ This section records the active execution roadmap used for device acceptance and
   - Any future change to these paths must preserve the accepted touch behavior and pass the Stage 2 phone-flow instrumentation tests before merge.
 - Stage 3 — Complete real A1–C2 educational content: **CODE + AUTOMATED/WEBVIEW QA COMPLETE CANDIDATE**.
 - Stage 4 — Private Tutor + Evaluation: **CODE + AUTOMATED/WEBVIEW QA COMPLETE CANDIDATE**.
-- Stage 5 — Exams + Specialized Pathways: **CODE + QA CANDIDATE**.
+- Stage 5 — Exams + Specialized Pathways: **DEVICE ACCEPTED / LOCKED**.
   - Authoritative Stage 5 surface: `stage5-exams-pathways.js` + `stage5-exams-pathways-ui.js`.
   - Goethe / telc / TestDaF / ÖSD; timed quick/weekly/comprehensive internal mocks; exact resume; evidence-based Writing/Speaking scoring; results, weak-skill analysis and explicitly non-official TestDaF readiness.
   - Migration / University / Career / Alltag pathways require real Writing + Speaking evidence. Legacy fixed-score Speaking UI is suppressed.
   - Official licensed exam papers are not bundled or claimed.
-- Next execution stage after Stage 5 acceptance: Stage 6 — profiles / classes.
+  - Device acceptance confirmed: an unfinished Mock preserves its active session/current question after exit and does not restart from question 1 on return.
+- Stage 6 — Profiles / Classes: **CODE COMPLETE CANDIDATE / DEVICE ACCEPTANCE PENDING**.
+  - Local Student/Teacher profiles, profile switching, Teacher Workspace, local class codes, student join, real lesson/exercise assignments, Writing/Speaking evidence, submission/grading and class report/PDF path.
+  - Current class codes are explicitly same-device/offline; cross-device Sync stays disabled until a real Backend exists.
+  - Future School/Admin role and sync contracts are supported by the architecture without replacing the offline educational core.
+- Next execution stage after Stage 6 acceptance: Stage 7 — heavy QA and device matrix.
