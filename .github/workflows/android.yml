@@ -136,6 +136,8 @@ jobs:
           unzip -l "$APK" | grep -q "assets/release13-stage7-ui.js"
           unzip -l "$APK" | grep -q "assets/stage5-exams-pathways.js"
           unzip -l "$APK" | grep -q "assets/stage5-exams-pathways-ui.js"
+          unzip -l "$APK" | grep -q "assets/stage6-profiles-classes.js"
+          unzip -l "$APK" | grep -q "assets/stage6-profiles-classes-ui.js"
           unzip -l "$APK" | grep -q "assets/release14-final-core.js"
           unzip -l "$APK" | grep -q "assets/release14-final-ui.js"
           unzip -l "$APK" | grep -q "assets/security/asset-integrity.json"
