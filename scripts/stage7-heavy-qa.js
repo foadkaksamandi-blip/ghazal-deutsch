@@ -199,8 +199,8 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
     s=stage6.submitAssignment(s,{studentId:sid,assignmentId:aid});
     const sub=s.enhancedSubmissions.find(x=>x.assignmentId===aid&&x.studentId===sid);
     s=stage6.gradeSubmission(s,{teacherId:tid,submissionId:sub.id,rubric:{task:90,grammar:82,vocabulary:84,fluency:80,pronunciation:78},comment:"Stage 6 QA"});
-    const rep=stage6.classReport(s,cid),student=stage6.studentDashboard(s,sid);
-    if(rep.completionRate!==100||rep.averageGrade==null||student.enhancedSubmissions[0].status!=="graded")throw new Error("stage6 authoritative flow "+n);
+    const rep=stage6.classReport(s,cid),graded=s.enhancedSubmissions.find(x=>x.assignmentId===aid&&x.studentId===sid);
+    if(rep.completionRate!==100||rep.averageGrade==null||!graded||graded.status!=="graded"||graded.teacherComment!=="Stage 6 QA")throw new Error("stage6 authoritative flow "+n);
     const ready=stage6.serverReadiness(s);
     if(ready.crossDeviceSync!==false||ready.currentScope!=="same-device-offline")throw new Error("stage6 sync boundary "+n);
   }
