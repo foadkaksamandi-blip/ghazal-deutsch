@@ -70,24 +70,6 @@ public class InteractionInstrumentedTest {
         assertTrue("Timed out waiting for " + label + " href=" + href + " body=" + body, false);
     }
 
-    private boolean waitForMaybe(String expression, long timeoutMs) throws Exception {
-        long deadline = SystemClock.uptimeMillis() + timeoutMs;
-        while (SystemClock.uptimeMillis() < deadline) {
-            if (evalBool(expression)) return true;
-            SystemClock.sleep(120L);
-        }
-        return false;
-    }
-
-    private void physicalTapAndWait(String selector, String expression, String label) throws Exception {
-        for (int attempt = 0; attempt < 3; attempt++) {
-            physicalTap(selector);
-            if (waitForMaybe(expression, 3500L)) return;
-            SystemClock.sleep(700L);
-        }
-        waitFor(expression, label);
-    }
-
     private float[] center(String selector) throws Exception {
         String q = selector.replace("\\", "\\\\").replace("'", "\\'");
         String value = eval("(function(){"
@@ -259,9 +241,8 @@ public class InteractionInstrumentedTest {
 
         physicalTap("[data-nav='practice']");
         waitFor("!!document.querySelector('#view [data-r11=\"checkpoint\"]')", "direct checkpoint shortcut");
-        physicalTapAndWait("#view [data-r11='checkpoint']",
-                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
-                "direct checkpoint modal");
+        physicalTap("#view [data-r11='checkpoint']");
+        waitFor("document.getElementById('modal') && document.getElementById('modal').hidden===false", "direct checkpoint modal");
         waitFor("document.getElementById('modal-content').innerText.indexOf('آزمون مرحله‌ای · سؤال 1 از')>=0", "direct checkpoint first question");
         assertTrue("Direct checkpoint did not use explicit Stage 2 back navigation",
                 evalBool("!!document.querySelector('#modal-content [data-r11=\"back-learning\"]')"));
@@ -310,9 +291,8 @@ public class InteractionInstrumentedTest {
         waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor\"]')", "Stage 4 tutor button");
         physicalTap("#modal-content [data-s4='tutor']");
         waitFor("!!document.querySelector('#modal-content [data-s4=\"tutor-quick\"]')", "Stage 4 tutor quick action");
-        physicalTapAndWait("#modal-content [data-s4='tutor-quick']",
-                "document.getElementById('s4-tutor-result').innerText.length>20",
-                "Stage 4 tutor answer");
+        physicalTap("#modal-content [data-s4='tutor-quick']");
+        waitFor("document.getElementById('s4-tutor-result').innerText.length>20", "Stage 4 tutor answer");
 
         assertTrue("Stage 4 speaking evaluator failed in WebView",
                 evalBool("(function(){var r=window.GhazalStage4Tutor.evaluateSpeaking('Ich erkläre meine Meinung. Außerdem nenne ich ein Beispiel. Deshalb empfehle ich diese Lösung.','B2','Stellungnahme');return r.total>=0&&r.total<=100&&r.rubric&&r.limitations.indexOf('Transcript')>=0;})()"));
@@ -347,30 +327,26 @@ public class InteractionInstrumentedTest {
 
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
-        assertTrue("Stage 5 close lost the active mock",
-                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
-
         SystemClock.sleep(650L);
-        physicalTap("[data-nav='home']");
-        waitFor("document.body.innerText.indexOf('برنامه امروز')>=0", "home before Stage 5 resume");
-        physicalTap("[data-nav='practice']");
-        waitFor("!!document.querySelector('#view [data-s5=\"hub\"]')", "Stage 5 entry after navigation");
-        physicalTapAndWait("#view [data-s5='hub']",
-                "document.getElementById('modal') && document.getElementById('modal').hidden===false",
-                "Stage 5 hub reopened");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 hub resume shortcut");
-        physicalTapAndWait("#modal-content [data-s5='resume']",
-                "!!document.getElementById('s5-timer')",
-                "Stage 5 resumed mock");
-        assertTrue("Stage 5 resume lost question index",
+
+        // Re-enter through the normal Exam Center route. Starting the same quick
+        // mock must resume the existing session instead of replacing it with Q1.
+        physicalTap("#view [data-s5='hub']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"exam-center\"]')", "Stage 5 hub reopened");
+        physicalTap("#modal-content [data-s5='exam-center']");
+        waitFor("document.querySelectorAll('#modal-content [data-s5=\"exam-brand\"]').length===4", "Stage 5 Exam Center reopened");
+        physicalTap("#modal-content [data-s5='exam-brand'][data-brand='goethe']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"start-mock\"][data-mode=\"quick\"]')", "Stage 5 Goethe reopened");
+        physicalTap("#modal-content [data-s5='start-mock'][data-mode='quick']");
+        waitFor("!!document.getElementById('s5-timer')", "Stage 5 normal-route resume");
+        assertTrue("Stage 5 normal exam route restarted the mock at question 1",
                 evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1);})()"));
 
         physicalTap("#modal-content [data-s5='close']");
         waitFor("document.getElementById('modal').hidden===true", "Stage 5 resume close");
         SystemClock.sleep(650L);
-        physicalTapAndWait("#view [data-s5='hub']",
-                "!!document.querySelector('#modal-content [data-s5=\"path-center\"]')",
-                "Stage 5 pathway center");
+        physicalTap("#view [data-s5='hub']");
+        waitFor("!!document.querySelector('#modal-content [data-s5=\"path-center\"]')", "Stage 5 pathway center");
         physicalTap("#modal-content [data-s5='path-center']");
         waitFor("document.querySelectorAll('#modal-content [data-s5=\"path\"]').length===4", "four Stage 5 pathways");
         assertTrue("Stage 5 pathways do not contain real modules",
