@@ -1,6 +1,6 @@
 # GHAZAL — Current Execution Stage 6
 
-Status: CODE COMPLETE CANDIDATE / DEVICE ACCEPTANCE PENDING
+Status: DEVICE ACCEPTED / LOCKED
 
 ## Scope
 Stage 6 in the active nine-stage execution roadmap is **Profiles / Classes**. It consolidates the existing local platform and classroom engines into one authoritative user-facing workflow without removing the locked Stage 1–5 capabilities.
@@ -35,11 +35,22 @@ The current build has no real classroom server. Therefore:
 - `stage6-profiles-classes.css`
 - existing `platform-core.js` and `release11-classroom-core.js` remain the underlying compatible data/domain engines.
 
-## Acceptance gate
-Stage 6 is not DEVICE ACCEPTED until:
-1. Unit/regression tests pass for Teacher → Class → Student → Assignment → Writing/Speaking → Submission → Grade → Report.
-2. Stage 8 Final Gate and hardened Android QA pass.
-3. Android Physical-Touch Regression passes the Stage 6 profile/class creation path.
-4. The same Stage 6 build is manually checked on the user's Android phone.
+## Acceptance evidence
+All Stage 6 acceptance gates passed:
+1. Unit/regression tests passed for Teacher → Class → Student → Assignment → Submission → Grade → Report.
+2. Stage 8 Final Gate and hardened Android QA passed.
+3. Android Physical-Touch Regression passed the Stage 6 profile/class creation path.
+4. Manual Android device acceptance passed end-to-end.
 
-Stage 5 remains locked and must not regress while Stage 6 is being accepted.
+Manual device evidence:
+- Student and Teacher local profiles created and switched correctly.
+- Teacher created class "A1 تست" and local class code "GHZA1790".
+- Student joined the class with the generated code.
+- Teacher published "تکلیف تست" from a real A1 lesson.
+- Student received the assignment, completed the lesson item and submitted it.
+- Teacher received the submission, reviewed it, saved a 90% grade and "خوب بود" feedback.
+- Student Workspace showed the saved 90% grade; assignment detail showed the saved teacher feedback.
+- Class report correctly showed 1 student, 100% completion and 90% average.
+- Native Android PDF save flow opened and the report was saved successfully.
+
+Stage 6 is now locked. Future work must not regress this accepted flow.
