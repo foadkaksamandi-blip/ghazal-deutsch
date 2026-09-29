@@ -143,8 +143,9 @@ This section records the active execution roadmap used for device acceptance and
   - Migration / University / Career / Alltag pathways require real Writing + Speaking evidence. Legacy fixed-score Speaking UI is suppressed.
   - Official licensed exam papers are not bundled or claimed.
   - Device acceptance confirmed: an unfinished Mock preserves its active session/current question after exit and does not restart from question 1 on return.
-- Stage 6 — Profiles / Classes: **CODE COMPLETE CANDIDATE / DEVICE ACCEPTANCE PENDING**.
+- Stage 6 — Profiles / Classes: **DEVICE ACCEPTED / LOCKED**.
   - Local Student/Teacher profiles, profile switching, Teacher Workspace, local class codes, student join, real lesson/exercise assignments, Writing/Speaking evidence, submission/grading and class report/PDF path.
   - Current class codes are explicitly same-device/offline; cross-device Sync stays disabled until a real Backend exists.
   - Future School/Admin role and sync contracts are supported by the architecture without replacing the offline educational core.
-- Next execution stage after Stage 6 acceptance: Stage 7 — heavy QA and device matrix.
+- Device acceptance confirmed end-to-end on Android: Student/Teacher profiles, profile switching, class creation/code, same-device student join, assignment publication, lesson completion, final submission, teacher review, saved 90% grade, saved teacher feedback, class report (1 student / 100% completion / 90% average), and Android PDF save flow all passed. Grade is visible in the Student Workspace assignment row and teacher feedback is visible in the assignment detail.
+- Next execution stage: Stage 7 — heavy QA and device matrix.
