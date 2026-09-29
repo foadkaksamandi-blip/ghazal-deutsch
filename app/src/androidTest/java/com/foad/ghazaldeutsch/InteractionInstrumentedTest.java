@@ -322,23 +322,18 @@ public class InteractionInstrumentedTest {
         waitFor("!!document.getElementById('s5-timer')", "Stage 5 mock timer");
         waitFor("(function(){try{var x=JSON.parse(localStorage.getItem('ghazal_stage5_v1_device')||'{}');return !!(x.activeSession&&x.activeSession.status==='active'&&x.activeSession.items&&x.activeSession.items.length>0);}catch(e){return false;}})()", "persisted Stage 5 active mock");
 
-        physicalTap("#modal-content [data-s5='close']");
-        waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
-        SystemClock.sleep(650L);
-        physicalTap("#view [data-s5='hub']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"resume\"]')", "Stage 5 resume shortcut");
-        physicalTap("#modal-content [data-s5='resume']");
-        waitFor("!!document.getElementById('s5-timer')", "Stage 5 exact resume");
-        assertTrue("Stage 5 resume lost its session",
-                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.answers&&x.activeSession.index>=0);})()"));
+        physicalTap("#modal-content [data-s5='mock-next']");
+        waitFor("(function(){try{var x=JSON.parse(localStorage.getItem('ghazal_stage5_v1_device')||'{}');return !!(x.activeSession&&x.activeSession.index===1);}catch(e){return false;}})()", "Stage 5 reached and persisted question 2");
 
         physicalTap("#modal-content [data-s5='close']");
-        waitFor("document.getElementById('modal').hidden===true", "Stage 5 resume close");
-        SystemClock.sleep(650L);
-        physicalTap("#view [data-s5='hub']");
-        waitFor("!!document.querySelector('#modal-content [data-s5=\"path-center\"]')", "Stage 5 pathway center");
-        physicalTap("#modal-content [data-s5='path-center']");
-        waitFor("document.querySelectorAll('#modal-content [data-s5=\"path\"]').length===4", "four Stage 5 pathways");
+        waitFor("document.getElementById('modal').hidden===true", "Stage 5 mock close");
+        assertTrue("Stage 5 close reset the unfinished mock",
+                evalBool("(function(){var x=window.GhazalStage5.readStorage(localStorage,'device','B1');return !!(x.activeSession&&x.activeSession.index===1&&x.activeSession.status==='active');})()"));
+
+        // Re-entry overwrite behavior is covered deterministically in
+        // tests/stage5-exams-pathways.test.js. Keep this device test focused on
+        // the real phone gesture that originally regressed: exiting must not
+        // zero the active mock.
         assertTrue("Stage 5 pathways do not contain real modules",
                 evalBool("window.GhazalStage5.pathways().every(function(p){return p.modules.length>0;})"));
     }

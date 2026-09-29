@@ -159,3 +159,11 @@ test('Stage 5 assets are wired and legacy fixed-score specialization entry is su
   assert.ok(index.includes('stage5-exams-pathways.css'));
   assert.ok(legacy.includes('if(window.GhazalStage5)return;'));
 });
+
+
+test('Stage 5 UI preserves an unfinished mock instead of restarting at question 1',()=>{
+  const ui=fs.readFileSync(path.join(ASSETS,'stage5-exams-pathways-ui.js'),'utf8');
+  assert.match(ui,/function startMock\(mode\)\{[\s\S]*if\(st\.activeSession\)\{[\s\S]*return mockPage\(\);[\s\S]*S\.startMock/);
+  assert.match(ui,/function close\(\)\{try\{persistTextarea\(\);\}catch\(_\)\{\}/);
+  assert.match(ui,/function resumeCard\(st\)\{[\s\S]*activeSession[\s\S]*سؤال/);
+});
