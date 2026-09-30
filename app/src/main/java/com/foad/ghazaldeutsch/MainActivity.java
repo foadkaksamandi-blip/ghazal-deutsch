@@ -709,11 +709,13 @@ public class MainActivity extends FragmentActivity {
 
         if (webView != null) webView.postDelayed(() -> {
             if (generation != speechSessionGeneration || !speechSessionActive) return;
+            boolean heard = speechDetected;
+            speechSessionActive = false;
+            speechSessionGeneration++;
             try {
                 if (speechRecognizer != null) speechRecognizer.cancel();
             } catch (Exception ignored) { }
-            speechSessionActive = false;
-            if (speechDetected) notifySpeechError("صدا دریافت شد اما نتیجه برنگشت؛ دوباره تلاش کن");
+            if (heard) notifySpeechError("صدا دریافت شد اما نتیجه برنگشت؛ دوباره تلاش کن");
             else notifySpeechError("میکروفون صدایی دریافت نکرد؛ نزدیک‌تر و واضح‌تر صحبت کن");
         }, 9000L);
     }
