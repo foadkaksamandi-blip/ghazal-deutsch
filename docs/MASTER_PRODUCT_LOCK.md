@@ -148,4 +148,8 @@ This section records the active execution roadmap used for device acceptance and
   - Current class codes are explicitly same-device/offline; cross-device Sync stays disabled until a real Backend exists.
   - Future School/Admin role and sync contracts are supported by the architecture without replacing the offline educational core.
 - Device acceptance confirmed end-to-end on Android: Student/Teacher profiles, profile switching, class creation/code, same-device student join, assignment publication, lesson completion, final submission, teacher review, saved 90% grade, saved teacher feedback, class report (1 student / 100% completion / 90% average), and Android PDF save flow all passed. Grade is visible in the Student Workspace assignment row and teacher feedback is visible in the assignment detail.
-- Next execution stage: Stage 7 — heavy QA and device matrix.
+- Stage 7 — Heavy QA / Device Matrix: **CURRENTLY IN ACCEPTANCE**.
+  - Automated Stage 7 now re-audits the authoritative Stage 6 profiles/classes surface, not only the legacy classroom core.
+  - Heavy stress, full product/UI audit, Android lint, hardened APK, physical WebView regression and upgrade regression must all pass on the current Stage 6-locked baseline.
+  - Manual critical Device Matrix remains human-only; physical cases are never auto-passed.
+- Next execution stage after Stage 7 acceptance: Stage 8 — final release.

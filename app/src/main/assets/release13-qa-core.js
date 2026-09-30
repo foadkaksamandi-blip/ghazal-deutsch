@@ -6,12 +6,13 @@
     root&&root.GhazalDictionary,
     root&&root.GhazalLearningEngine,
     root&&root.GhazalClassroomCore,
+    root&&root.GhazalStage6,
     root&&root.GhazalProductCore,
     root&&root.GhazalSecurityCore
   );
   if(typeof module==="object"&&module.exports)module.exports=api;
   if(root)root.GhazalQACore=api;
-})(typeof window!=="undefined"?window:null,function(Data,Exercises,Content,Dictionary,Learning,Classroom,Product,Security){
+})(typeof window!=="undefined"?window:null,function(Data,Exercises,Content,Dictionary,Learning,Classroom,Stage6,Product,Security){
   "use strict";
   const VERSION="14.0.2",SCHEMA=1;
   const LEVELS=["A1","A2","B1","B2","C1","C2"];
@@ -106,6 +107,14 @@
       const contracts=Classroom.serverContracts?Classroom.serverContracts():null;return{contracts,pass:!!(contracts&&contracts.offlineQueue&&contracts.idempotencyRequired)};
     }catch(err){return{pass:false,error:String(err&&err.message||err)};}
   }
+  function stage6Audit(){
+    try{
+      if(!Stage6)return{pass:false,error:"missing_stage6"};
+      const audit=typeof Stage6.audit==="function"?Stage6.audit():{pass:false,issues:["audit_missing"]};
+      const ready=typeof Stage6.serverReadiness==="function"?Stage6.serverReadiness({}):null;
+      return{version:Stage6.VERSION,audit,ready,pass:Stage6.VERSION==="6.0.0"&&audit.pass===true&&!!(ready&&ready.offlineFirst===true&&ready.crossDeviceSync===false&&ready.currentScope==="same-device-offline")};
+    }catch(err){return{pass:false,error:String(err&&err.message||err)};}
+  }
   async function productAudit(storage){
     try{
       if(!Product)return{pass:false,error:"missing_product_core"};
@@ -121,7 +130,7 @@
   function runtimeAudit(state){const s=normalize(state),recent=s.runtimeErrors.filter(x=>Date.now()-new Date(x.at).getTime()<24*3600*1000);return{recent:recent.length,items:recent.slice(-20),pass:recent.length===0};}
   function check(id,category,critical,pass,detail){return{id,category,critical:!!critical,pass:!!pass,detail:detail||null};}
   async function runAutomated(state,storage,context){
-    const s=normalize(state),ctx=context||{},content=contentAudit(),search=searchAudit(),dict=dictionaryAudit(),learn=learningAudit(),classroom=classroomAudit(),product=await productAudit(storage),security=securityAudit(storage),storageResult=storageAudit(storage),runtime=runtimeAudit(s);
+    const s=normalize(state),ctx=context||{},content=contentAudit(),search=searchAudit(),dict=dictionaryAudit(),learn=learningAudit(),classroom=classroomAudit(),stage6=stage6Audit(),product=await productAudit(storage),security=securityAudit(storage),storageResult=storageAudit(storage),runtime=runtimeAudit(s);
     const native=ctx.device||security.native||{};
     const checks=[
       check("content-schema","education",true,content.pass,content),
@@ -129,6 +138,7 @@
       check("dictionary","education",false,dict.pass,dict),
       check("adaptive-engine","education",true,learn.pass,learn),
       check("classroom-contract","classroom",true,classroom.pass,classroom),
+      check("stage6-current-surface","classroom",true,stage6.pass,stage6),
       check("product-backup-pack-offline","persistence",true,product.pass,product),
       check("storage-health","persistence",true,storageResult.pass,storageResult),
       check("security-runtime","security",true,security.pass,security),
@@ -155,5 +165,5 @@
   function evidence(state,device){
     const s=normalize(state),last=s.runs.slice(-1)[0]||null,manual=manualSummary(s);return{format:"ghazal-stage7-qa-evidence-v1",version:VERSION,generatedAt:now(),device:device||s.lastDevice||null,automated:last,manual:{counts:manual.counts,criticalPending:manual.criticalPending,criticalFailed:manual.criticalFailed,results:s.manual},runtimeErrors:s.runtimeErrors.slice(-50),releaseGate:releaseReadiness(s,last,{productionSigning:device&&device.productionSigned===true,repositoryPrivate:false})};
   }
-  return{VERSION,SCHEMA,LEVELS,CRITICAL_CATEGORIES,MANUAL_CASES,initialState,normalize,recordRuntimeError,setManual,manualSummary,contentAudit,storageAudit,searchAudit,dictionaryAudit,learningAudit,classroomAudit,productAudit,securityAudit,runtimeAudit,runAutomated,releaseReadiness,evidence};
+  return{VERSION,SCHEMA,LEVELS,CRITICAL_CATEGORIES,MANUAL_CASES,initialState,normalize,recordRuntimeError,setManual,manualSummary,contentAudit,storageAudit,searchAudit,dictionaryAudit,learningAudit,classroomAudit,stage6Audit,productAudit,securityAudit,runtimeAudit,runAutomated,releaseReadiness,evidence};
 });

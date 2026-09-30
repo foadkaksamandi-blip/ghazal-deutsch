@@ -50,21 +50,23 @@ function loadAll(){
   const stage4=require(path.join(ASSETS,"stage4-tutor-evaluation.js"));window.GhazalStage4Tutor=stage4;
   const stage5=require(path.join(ASSETS,"stage5-exams-pathways.js"));window.GhazalStage5=stage5;
   const classroom=require(path.join(ASSETS,rel[15]));window.GhazalClassroomCore=classroom;
+  const stage6=require(path.join(ASSETS,"stage6-profiles-classes.js"));window.GhazalStage6=stage6;
   const product=require(path.join(ASSETS,"release12-product-core.js"));window.GhazalProductCore=product;
   const security=require(path.join(ASSETS,"release12-security-core.js"));window.GhazalSecurityCore=security;
   const qa=require(path.join(ASSETS,"release13-qa-core.js"));window.GhazalQACore=qa;
   delete global.window;
-  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,coach,platform,learning,stage4,stage5,classroom,product,security,qa};
+  return{data,lib,dict,deep,spec,advanced,stage3,exercises,content,coach,platform,learning,stage4,stage5,classroom,stage6,product,security,qa};
 }
 
 function rng(seed=0x5a17c0de){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/0x100000000;};}
 function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
 
 (async()=>{
-  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,stage4,stage5,classroom,product,security,qa}=all;
+  const all=loadAll(),{data,stage3,exercises,content,dict,platform,learning,stage4,stage5,classroom,stage6,product,security,qa}=all;
   assertCheck("stage3-content-pack",stage3.audit().pass,stage3.audit());
   assertCheck("stage4-engine-contract",["buildBaselineAssessment","scoreBaseline","evaluateWriting","evaluateSpeaking","evaluatePronunciation","applyAssessment","errorProfile","buildAdaptivePlan","tutorAdvice"].every(k=>typeof stage4[k]==="function"),{version:stage4.VERSION});
   assertCheck("stage5-engine-contract",["examTasks","buildMock","finalizeSession","startMock","finishMock","pathways","markPathway","testdafReadiness","historySummary"].every(k=>typeof stage5[k]==="function")&&stage5.audit().pass,{version:stage5.VERSION,audit:stage5.audit()});
+  assertCheck("stage6-engine-contract",stage6&&stage6.VERSION==="6.0.0"&&stage6.audit().pass,{version:stage6&&stage6.VERSION,audit:stage6&&stage6.audit()});
 
   const contentAudit=qa.contentAudit();
   assertCheck("content-full-schema",contentAudit.pass,contentAudit);
@@ -174,6 +176,36 @@ function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
   }
   const classroomMs=Math.round(performance.now()-classroomStart);report.metrics.classroom40Ms=classroomMs;
   assertCheck("classroom-stress",classroomMs<15000,{flows:40,classroomMs});
+
+  const stage6Start=performance.now();
+  for(let n=0;n<40;n++){
+    const lesson=data.lessons[n%data.lessons.length];
+    let s=stage6.normalize({});
+    const tid="s6t"+n,sid="s6s"+n,cid="s6c"+n,aid="s6a"+n,code=("GHZ"+String(70000+n)).slice(0,8);
+    s=stage6.createProfile(s,{id:tid,displayName:"Stage6 Teacher "+n,role:"teacher"});
+    s=stage6.createClass(s,{id:cid,teacherId:tid,name:"Stage6 Class "+n,code});
+    s=stage6.createProfile(s,{id:sid,displayName:"Stage6 Student "+n,role:"student"});
+    s=stage6.joinClass(s,{studentId:sid,code});
+    s=stage6.createAssignment(s,{
+      id:aid,teacherId:tid,classId:cid,title:"Stage6 QA "+n,lessonId:lesson.id,
+      writingPrompt:"Schreibe vier Sätze über deinen Alltag.",
+      speakingPrompt:"Stelle dich kurz vor."
+    });
+    const a=s.enhancedAssignments.find(x=>x.id===aid);
+    const li=a.items.find(x=>x.kind==="lesson"),wi=a.items.find(x=>x.kind==="writing"),si=a.items.find(x=>x.kind==="speaking");
+    s=stage6.saveAnswer(s,{studentId:sid,assignmentId:aid,itemId:li.id,completed:true});
+    s=stage6.saveAnswer(s,{studentId:sid,assignmentId:aid,itemId:wi.id,text:"Ich heiße Ghazal. Ich lerne Deutsch. Ich wohne in Teheran. Ich übe jeden Tag."});
+    s=stage6.saveAnswer(s,{studentId:sid,assignmentId:aid,itemId:si.id,transcript:"Ich heiße Ghazal und ich lerne Deutsch jeden Tag."});
+    s=stage6.submitAssignment(s,{studentId:sid,assignmentId:aid});
+    const sub=s.enhancedSubmissions.find(x=>x.assignmentId===aid&&x.studentId===sid);
+    s=stage6.gradeSubmission(s,{teacherId:tid,submissionId:sub.id,rubric:{task:90,grammar:82,vocabulary:84,fluency:80,pronunciation:78},comment:"Stage 6 QA"});
+    const rep=stage6.classReport(s,cid),graded=s.enhancedSubmissions.find(x=>x.assignmentId===aid&&x.studentId===sid);
+    if(rep.completionRate!==100||rep.averageGrade==null||!graded||graded.status!=="graded"||graded.teacherComment!=="Stage 6 QA")throw new Error("stage6 authoritative flow "+n);
+    const ready=stage6.serverReadiness(s);
+    if(ready.crossDeviceSync!==false||ready.currentScope!=="same-device-offline")throw new Error("stage6 sync boundary "+n);
+  }
+  const stage6Ms=Math.round(performance.now()-stage6Start);report.metrics.stage6Authoritative40Ms=stage6Ms;
+  assertCheck("stage6-authoritative-stress",stage6Ms<20000,{flows:40,stage6Ms});
 
   const storage=new FakeStorage({
     ghazal_deutsch_state_v1:JSON.stringify({profile:{name:"QA",level:"B2"},progress:{completedLessons:["x"],xp:400,streak:7}}),
