@@ -105,6 +105,10 @@ public class MainActivity extends FragmentActivity {
     private boolean appUnlocked = false;
     private boolean authInProgress = false;
     private boolean ttsReady = false;
+    private boolean speechSessionActive = false;
+    private boolean speechDetected = false;
+    private long lastSpeechUiAt = 0L;
+    private int speechSessionGeneration = 0;
     private long backgroundedAt = 0L;
     private float rescueDownX;
     private float rescueDownY;
@@ -603,7 +607,12 @@ public class MainActivity extends FragmentActivity {
             runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO));
             return;
         }
-        runOnUiThread(this::beginSpeechRecognition);
+        runOnUiThread(() -> {
+            stopSpeaking();
+            notifySpeechState("starting", "میکروفون در حال آماده‌شدن…");
+            if (webView != null) webView.postDelayed(this::beginSpeechRecognition, 260L);
+            else beginSpeechRecognition();
+        });
     }
 
     private void beginSpeechRecognition() {
@@ -611,21 +620,73 @@ public class MainActivity extends FragmentActivity {
             notifySpeechError("تشخیص گفتار روی این گوشی در دسترس نیست");
             return;
         }
-        if (speechRecognizer != null) { speechRecognizer.destroy(); speechRecognizer = null; }
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        if (speechRecognizer != null) {
+            try { speechRecognizer.cancel(); } catch (Exception ignored) { }
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
+
+        boolean onDevice = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
+            try {
+                speechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(this);
+                onDevice = true;
+            } catch (Exception ignored) {
+                speechRecognizer = null;
+            }
+        }
+        if (speechRecognizer == null) speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
+        final boolean usingOnDevice = onDevice;
+        final int generation = ++speechSessionGeneration;
+        speechSessionActive = true;
+        speechDetected = false;
+        lastSpeechUiAt = 0L;
+
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(Bundle params) { notifySpeechState("ready", "آماده‌ام؛ شروع کن"); }
-            @Override public void onBeginningOfSpeech() { notifySpeechState("listening", "دارم گوش می‌دهم…"); }
-            @Override public void onRmsChanged(float rmsdB) { }
+            @Override public void onReadyForSpeech(Bundle params) {
+                if (generation != speechSessionGeneration) return;
+                notifySpeechState("ready", usingOnDevice ? "تشخیص آفلاین آماده است؛ شروع کن" : "آماده‌ام؛ شروع کن");
+            }
+            @Override public void onBeginningOfSpeech() {
+                if (generation != speechSessionGeneration) return;
+                speechDetected = true;
+                notifySpeechState("listening", "صدایت دریافت شد؛ ادامه بده…");
+            }
+            @Override public void onRmsChanged(float rmsdB) {
+                if (generation != speechSessionGeneration || !speechSessionActive) return;
+                long now = System.currentTimeMillis();
+                if (rmsdB > 1.8f) {
+                    speechDetected = true;
+                    if (now - lastSpeechUiAt > 650L) {
+                        lastSpeechUiAt = now;
+                        notifySpeechState("listening", "میکروفون صدا را دریافت می‌کند…");
+                    }
+                }
+            }
             @Override public void onBufferReceived(byte[] buffer) { }
-            @Override public void onEndOfSpeech() { notifySpeechState("processing", "صدا دریافت شد؛ در حال بررسی…"); }
-            @Override public void onPartialResults(Bundle partialResults) { }
+            @Override public void onEndOfSpeech() {
+                if (generation != speechSessionGeneration) return;
+                notifySpeechState("processing", "صدا دریافت شد؛ در حال بررسی…");
+            }
+            @Override public void onPartialResults(Bundle partialResults) {
+                if (generation != speechSessionGeneration) return;
+                ArrayList<String> matches = partialResults == null ? null : partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches != null && !matches.isEmpty() && !matches.get(0).trim().isEmpty()) {
+                    speechDetected = true;
+                    notifySpeechState("listening", "شنیدم: " + matches.get(0));
+                }
+            }
             @Override public void onEvent(int eventType, Bundle params) { }
             @Override public void onError(int error) {
+                if (generation != speechSessionGeneration) return;
+                speechSessionActive = false;
                 notifySpeechState("idle", "");
                 notifySpeechError(speechErrorMessage(error));
             }
             @Override public void onResults(Bundle results) {
+                if (generation != speechSessionGeneration) return;
+                speechSessionActive = false;
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
                 notifySpeechState("done", "");
@@ -637,14 +698,24 @@ public class MainActivity extends FragmentActivity {
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE");
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "de-DE");
-        intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
-        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 900L);
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 900L);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1400L);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L);
         if (pendingSpeechPrompt != null && !pendingSpeechPrompt.isEmpty()) intent.putExtra(RecognizerIntent.EXTRA_PROMPT, pendingSpeechPrompt);
-        notifySpeechState("starting", "میکروفون در حال آماده‌شدن…");
         speechRecognizer.startListening(intent);
+
+        if (webView != null) webView.postDelayed(() -> {
+            if (generation != speechSessionGeneration || !speechSessionActive) return;
+            try {
+                if (speechRecognizer != null) speechRecognizer.cancel();
+            } catch (Exception ignored) { }
+            speechSessionActive = false;
+            if (speechDetected) notifySpeechError("صدا دریافت شد اما نتیجه برنگشت؛ دوباره تلاش کن");
+            else notifySpeechError("میکروفون صدایی دریافت نکرد؛ نزدیک‌تر و واضح‌تر صحبت کن");
+        }, 9000L);
     }
 
     private String speechErrorMessage(int error) {
