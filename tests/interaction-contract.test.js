@@ -98,6 +98,21 @@ test('speech bridge exposes visible lifecycle and error feedback for five-skill 
   for(const token of ['window.onSpeechState=function','window.onSpeechError=function','میکروفون در حال آماده‌شدن','speechStatus'])assert.ok(r5.includes(token),token);
 });
 
+test('speech recognition prefers on-device German and has a visible watchdog',()=>{
+  const main=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
+  for(const token of [
+    'SpeechRecognizer.isOnDeviceRecognitionAvailable(this)',
+    'SpeechRecognizer.createOnDeviceSpeechRecognizer(this)',
+    'stopSpeaking();',
+    'EXTRA_PREFER_OFFLINE',
+    'EXTRA_PARTIAL_RESULTS',
+    'onRmsChanged(float rmsdB)',
+    'میکروفون صدا را دریافت می‌کند',
+    'postDelayed(() ->',
+    '9000L'
+  ]) assert.ok(main.includes(token),token);
+});
+
 test('physical-touch instrumentation covers onboarding navigation lesson modal and dynamic Stage 5/6 UI',()=>{
   const testFile=fs.readFileSync(path.join(ROOT,'app/src/androidTest/java/com/foad/ghazaldeutsch/InteractionInstrumentedTest.java'),'utf8');
   for(const token of ['dispatchTouchEvent',"[data-action='skip-placement']","[data-nav='path']","[data-nav='practice']","[data-nav='migration']","[data-nav='profile']","[data-action='open-lesson']","[data-r12='hub']"])assert.ok(testFile.includes(token),token);
