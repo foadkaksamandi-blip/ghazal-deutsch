@@ -614,17 +614,21 @@ public class MainActivity extends FragmentActivity {
         if (speechRecognizer != null) { speechRecognizer.destroy(); speechRecognizer = null; }
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(Bundle params) { }
-            @Override public void onBeginningOfSpeech() { }
+            @Override public void onReadyForSpeech(Bundle params) { notifySpeechState("ready", "آماده‌ام؛ شروع کن"); }
+            @Override public void onBeginningOfSpeech() { notifySpeechState("listening", "دارم گوش می‌دهم…"); }
             @Override public void onRmsChanged(float rmsdB) { }
             @Override public void onBufferReceived(byte[] buffer) { }
-            @Override public void onEndOfSpeech() { }
+            @Override public void onEndOfSpeech() { notifySpeechState("processing", "صدا دریافت شد؛ در حال بررسی…"); }
             @Override public void onPartialResults(Bundle partialResults) { }
             @Override public void onEvent(int eventType, Bundle params) { }
-            @Override public void onError(int error) { notifySpeechError(speechErrorMessage(error)); }
+            @Override public void onError(int error) {
+                notifySpeechState("idle", "");
+                notifySpeechError(speechErrorMessage(error));
+            }
             @Override public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
+                notifySpeechState("done", "");
                 notifySpeechResult(text);
             }
         });
@@ -635,8 +639,11 @@ public class MainActivity extends FragmentActivity {
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "de-DE");
         intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
+        intent.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 900L);
         if (pendingSpeechPrompt != null && !pendingSpeechPrompt.isEmpty()) intent.putExtra(RecognizerIntent.EXTRA_PROMPT, pendingSpeechPrompt);
+        notifySpeechState("starting", "میکروفون در حال آماده‌شدن…");
         speechRecognizer.startListening(intent);
     }
 
@@ -655,6 +662,13 @@ public class MainActivity extends FragmentActivity {
         if (webView == null) return;
         String quoted = JSONObject.quote(text == null ? "" : text);
         runOnUiThread(() -> webView.evaluateJavascript("window.onSpeechResult && window.onSpeechResult(" + quoted + ")", null));
+    }
+
+    private void notifySpeechState(String state, String message) {
+        if (webView == null) return;
+        String quotedState = JSONObject.quote(state == null ? "" : state);
+        String quotedMessage = JSONObject.quote(message == null ? "" : message);
+        runOnUiThread(() -> webView.evaluateJavascript("window.onSpeechState && window.onSpeechState(" + quotedState + "," + quotedMessage + ")", null));
     }
 
     private void notifySpeechError(String message) {
