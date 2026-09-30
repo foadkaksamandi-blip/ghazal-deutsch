@@ -91,6 +91,13 @@ test('Android native touch rescue is installed and delegates failed taps into th
   for(const token of ['recordUiInteraction','publishInteractionMap','getInteractionQaState'])assert.ok(bridge.includes(token),token);
 });
 
+test('speech bridge exposes visible lifecycle and error feedback for five-skill speaking',()=>{
+  const main=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
+  const r5=read('release5-extension.js');
+  for(const token of ['notifySpeechState("ready"','notifySpeechState("listening"','notifySpeechState("processing"','window.onSpeechState && window.onSpeechState'])assert.ok(main.includes(token),token);
+  for(const token of ['window.onSpeechState=function','window.onSpeechError=function','میکروفون در حال آماده‌شدن','speechStatus'])assert.ok(r5.includes(token),token);
+});
+
 test('physical-touch instrumentation covers onboarding navigation lesson modal and dynamic Stage 5/6 UI',()=>{
   const testFile=fs.readFileSync(path.join(ROOT,'app/src/androidTest/java/com/foad/ghazaldeutsch/InteractionInstrumentedTest.java'),'utf8');
   for(const token of ['dispatchTouchEvent',"[data-action='skip-placement']","[data-nav='path']","[data-nav='practice']","[data-nav='migration']","[data-nav='profile']","[data-action='open-lesson']","[data-r12='hub']"])assert.ok(testFile.includes(token),token);
