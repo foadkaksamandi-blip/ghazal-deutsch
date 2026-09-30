@@ -215,6 +215,16 @@ public class InteractionInstrumentedTest {
         waitFor("document.getElementById('modal-content').innerText.indexOf('3/5')>=0", "five-skill resumed writing stage");
         assertTrue("Five-skill writing draft was not restored",
                 evalBool("document.getElementById('r5-input')&&document.getElementById('r5-input').value==='GHAZAL FIVE SKILL DRAFT'"));
+
+        eval("document.querySelector('#modal-content [data-r5=\\\"check-write\\\"]').click()");
+        waitFor("!!document.querySelector('#modal-content [data-r5=\"next\"]')", "writing next");
+        eval("document.querySelector('#modal-content [data-r5=\\\"next\\\"]').click()");
+        waitFor("document.getElementById('modal-content').innerText.indexOf('4/5')>=0", "five-skill speaking");
+
+        eval("window.onSpeechState && window.onSpeechState('listening','دارم گوش می‌دهم…')");
+        waitFor("document.getElementById('r5-feedback').innerText.indexOf('دارم گوش')>=0", "visible speech listening state");
+        eval("window.onSpeechError && window.onSpeechError('TEST SPEECH ERROR')");
+        waitFor("document.getElementById('r5-feedback').innerText.indexOf('TEST SPEECH ERROR')>=0", "visible speech error");
     }
 
 
