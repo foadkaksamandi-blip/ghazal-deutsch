@@ -188,16 +188,20 @@ public class InteractionInstrumentedTest {
         physicalTap("#view [data-r5='integrated']");
         waitFor("document.getElementById('modal-content').innerText.indexOf('1/5')>=0", "five-skill listening");
 
-        eval("(function(){var e=document.getElementById('r5-input');e.value='Hallo';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
-        physicalTap("#modal-content [data-r5='check-listen']");
+        eval("(function(){var e=document.getElementById('r5-input');e.value='Hallo';e.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('#modal-content [data-r5=\\\"check-listen\\\"]').click();return true;})()");
         waitFor("!!document.querySelector('#modal-content [data-r5=\"next\"]')", "listening next");
-        physicalTap("#modal-content [data-r5='next']");
+        eval("document.querySelector('#modal-content [data-r5=\\\"next\\\"]').click()");
         waitFor("document.getElementById('modal-content').innerText.indexOf('2/5')>=0", "five-skill reading");
 
         eval("(function(){var l=(window.GhazalData.lessons||[]).find(function(x){var s=JSON.parse(localStorage.getItem('ghazal_deutsch_r5_v1')||'{}').activeSession;return s&&x.id===s.lessonId;});if(!l)return false;var b=document.querySelector('#modal-content [data-r5=\\\"read-answer\\\"][data-index=\\\"'+l.quiz.answer+'\\\"]');if(!b)return false;b.click();return true;})()");
         waitFor("!!document.querySelector('#modal-content [data-r5=\"next\"]')", "reading next");
-        physicalTap("#modal-content [data-r5='next']");
+        eval("document.querySelector('#modal-content [data-r5=\\\"next\\\"]').click()");
         waitFor("document.getElementById('modal-content').innerText.indexOf('3/5')>=0 && !!document.getElementById('r5-input')", "five-skill writing");
+
+        physicalTap("#modal-content #r5-input");
+        SystemClock.sleep(900L);
+        assertTrue("Editable touch leaked out of five-skill Writing",
+                evalBool("document.getElementById('modal') && document.getElementById('modal').hidden===false && document.getElementById('modal-content').innerText.indexOf('3/5')>=0"));
 
         eval("(function(){var e=document.getElementById('r5-input');e.value='GHAZAL FIVE SKILL DRAFT';e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
         waitFor("(function(){try{var s=JSON.parse(localStorage.getItem('ghazal_deutsch_r5_v1')||'{}').activeSession;return !!s&&s.stage===2&&s.draft==='GHAZAL FIVE SKILL DRAFT';}catch(e){return false;}})()", "persisted five-skill writing draft");
