@@ -68,7 +68,7 @@ test('interaction kernel covers every control namespace and loads before app rou
   for(const token of ['[data-action]','[data-nav]','[data-os-action]','[data-r3]','[data-r4]','[data-r5]','[data-r6]','[data-r7]','[data-r8]','[data-r9]','[data-r10]','[data-r11]','[data-r12]','[data-r13]','[data-r14]']){
     assert.ok(rescue.includes(token),token);
   }
-  assert.ok(rescue.includes('VERSION:"2.4.0"'));
+  assert.ok(rescue.includes('VERSION:"2.4.1"'));
   assert.ok(rescue.includes('candidateFromCachedMap'));
   assert.ok(rescue.includes('data-ghz-control-id'));
   assert.ok(rescue.includes('targetByUid'));
@@ -103,6 +103,11 @@ test('interaction kernel does not synthesize hair-trigger touchend or pointerup 
   assert.ok(!rescue.includes('deferredTouch(event.target,"pointerup")'));
   const css=read('interaction-rescue.css');
   assert.ok(!css.includes('transform: translateY'));
+});
+
+test('native rescue never converts editable-field taps into stale button clicks',()=>{
+  const rescue=read('interaction-rescue.js');
+  for(const token of ['const EDITABLE=','function editableFromPoint','native-skip:editable','native-skip:editable-tail','lastEditableTouchAt','visualViewport.addEventListener("resize",schedulePublish)'])assert.ok(rescue.includes(token),token);
 });
 
 test('native rescue requires deliberate tap timing and normal Android touch slop',()=>{
