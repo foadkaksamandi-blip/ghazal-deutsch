@@ -6,6 +6,7 @@ import android.app.NotificationChannel;
 import android.app.ActivityManager;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ApplicationInfo;
@@ -83,6 +84,7 @@ public class MainActivity extends FragmentActivity {
     private static final int REQUEST_SECURE_IMPORT = 4106;
     private static final int REQUEST_PDF_EXPORT = 4107;
     private static final int REQUEST_QA_EXPORT = 4108;
+    private static final int REQUEST_SYSTEM_SPEECH = 4109;
     private static final int MAX_BACKUP_BYTES = 8_000_000;
     private static final long RELOCK_AFTER_MS = 5_000L;
     private static final String SECURITY_PREFS = "ghazal_security";
@@ -109,6 +111,7 @@ public class MainActivity extends FragmentActivity {
     private boolean speechDetected = false;
     private long lastSpeechUiAt = 0L;
     private int speechSessionGeneration = 0;
+    private boolean speechFallbackActivityActive = false;
     private long backgroundedAt = 0L;
     private float rescueDownX;
     private float rescueDownY;
@@ -319,6 +322,12 @@ public class MainActivity extends FragmentActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (speechFallbackActivityActive) {
+            appUnlocked = true;
+            backgroundedAt = 0L;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            return;
+        }
         if (!isAppLockEnabled()) {
             appUnlocked = true;
             if (webView != null) webView.setVisibility(View.VISIBLE);
@@ -334,7 +343,7 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     protected void onStop() {
-        if (!isChangingConfigurations()) {
+        if (!isChangingConfigurations() && !speechFallbackActivityActive) {
             backgroundedAt = System.currentTimeMillis();
             if (isAppLockEnabled()) {
                 appUnlocked = false;
@@ -610,6 +619,11 @@ public class MainActivity extends FragmentActivity {
         runOnUiThread(() -> {
             stopSpeaking();
             notifySpeechState("starting", "میکروفون در حال آماده‌شدن…");
+            if (isXiaomiFamily()) {
+                if (webView != null) webView.postDelayed(this::launchSystemSpeechFallback, 260L);
+                else launchSystemSpeechFallback();
+                return;
+            }
             if (webView != null) webView.postDelayed(this::beginSpeechRecognition, 260L);
             else beginSpeechRecognition();
         });
@@ -708,6 +722,16 @@ public class MainActivity extends FragmentActivity {
         speechRecognizer.startListening(intent);
 
         if (webView != null) webView.postDelayed(() -> {
+            if (generation != speechSessionGeneration || !speechSessionActive || speechDetected) return;
+            speechSessionActive = false;
+            speechSessionGeneration++;
+            try {
+                if (speechRecognizer != null) speechRecognizer.cancel();
+            } catch (Exception ignored) { }
+            launchSystemSpeechFallback();
+        }, 2800L);
+
+        if (webView != null) webView.postDelayed(() -> {
             if (generation != speechSessionGeneration || !speechSessionActive) return;
             boolean heard = speechDetected;
             speechSessionActive = false;
@@ -716,8 +740,47 @@ public class MainActivity extends FragmentActivity {
                 if (speechRecognizer != null) speechRecognizer.cancel();
             } catch (Exception ignored) { }
             if (heard) notifySpeechError("صدا دریافت شد اما نتیجه برنگشت؛ دوباره تلاش کن");
-            else notifySpeechError("میکروفون صدایی دریافت نکرد؛ نزدیک‌تر و واضح‌تر صحبت کن");
+            else launchSystemSpeechFallback();
         }, 9000L);
+    }
+
+    private boolean isXiaomiFamily() {
+        String maker = ((Build.MANUFACTURER == null ? "" : Build.MANUFACTURER) + " " +
+                (Build.BRAND == null ? "" : Build.BRAND)).toLowerCase(Locale.ROOT);
+        return maker.contains("xiaomi") || maker.contains("redmi") || maker.contains("poco");
+    }
+
+    private void launchSystemSpeechFallback() {
+        speechSessionActive = false;
+        speechSessionGeneration++;
+        try {
+            if (speechRecognizer != null) {
+                try { speechRecognizer.cancel(); } catch (Exception ignored) { }
+                speechRecognizer.destroy();
+                speechRecognizer = null;
+            }
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE");
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "de-DE");
+            intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                    pendingSpeechPrompt == null || pendingSpeechPrompt.isEmpty()
+                            ? "Deutsch sprechen"
+                            : pendingSpeechPrompt);
+            speechFallbackActivityActive = true;
+            appUnlocked = true;
+            backgroundedAt = 0L;
+            notifySpeechState("system", "تشخیص گفتار سیستم باز می‌شود؛ جمله آلمانی را بگو");
+            startActivityForResult(intent, REQUEST_SYSTEM_SPEECH);
+        } catch (ActivityNotFoundException exception) {
+            speechFallbackActivityActive = false;
+            notifySpeechError("سرویس تشخیص گفتار سیستم روی این گوشی در دسترس نیست");
+        } catch (Exception exception) {
+            speechFallbackActivityActive = false;
+            notifySpeechError("تشخیص گفتار سیستم اجرا نشد؛ دوباره امتحان کن");
+        }
     }
 
     private String speechErrorMessage(int error) {
@@ -1169,6 +1232,25 @@ public class MainActivity extends FragmentActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SYSTEM_SPEECH) {
+            speechFallbackActivityActive = false;
+            appUnlocked = true;
+            backgroundedAt = 0L;
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            if (resultCode == RESULT_OK && data != null) {
+                ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
+                if (!text.trim().isEmpty()) {
+                    notifySpeechState("done", "");
+                    notifySpeechResult(text);
+                } else {
+                    notifySpeechError("صدایی به متن تبدیل نشد؛ دوباره تلاش کن");
+                }
+            } else {
+                notifySpeechError("تشخیص گفتار لغو شد یا نتیجه‌ای برنگشت");
+            }
+            return;
+        }
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         try {
