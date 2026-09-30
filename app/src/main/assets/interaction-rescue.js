@@ -175,6 +175,16 @@
   function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
+    // A physical gesture that started on an editable field is browser-owned.
+    // The Android fallback runs later, often after the keyboard has resized the
+    // viewport, so re-hit-testing the old coordinates can land on a button
+    // behind the moved field. Never rescue that same gesture.
+    if(now()-lastEditableTouchAt<900){
+      native("recordUiInteraction","native-skip:editable-tail");
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      return false;
+    }
     const editableHit=editableFromPoint(lastNativeX,lastNativeY);
     if(editableHit){
       native("recordUiInteraction","native-skip:editable");
@@ -183,10 +193,6 @@
       return false;
     }
     const immediateLiveTarget=candidateFromPoint(lastNativeX,lastNativeY);
-    if(now()-lastEditableTouchAt<1200&&!immediateLiveTarget){
-      native("recordUiInteraction","native-skip:editable-tail");
-      return false;
-    }
     if(now()<nativeSuppressedUntil&&!isCloseTarget(immediateLiveTarget)){
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
