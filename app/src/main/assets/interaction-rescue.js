@@ -12,6 +12,7 @@
     "[data-r3]","[data-r4]","[data-r5]","[data-r6]","[data-r7]","[data-r8]",
     "[data-r9]","[data-r10]","[data-r11]","[data-r12]","[data-r13]","[data-r14]"
   ].join(",");
+  const EDITABLE="textarea,input:not([type='button']):not([type='submit']):not([type='reset']):not([type='checkbox']):not([type='radio']),select,[contenteditable='true']";
 
   let lastBrowserActivationAt=0;
   let lastBrowserTarget=null;
@@ -26,8 +27,23 @@
   let nativeSuppressedUntil=0;
   let lastPhysicalTarget=null;
   let lastPhysicalTargetAt=0;
+  let lastEditableTouchAt=0;
 
   function now(){return Date.now();}
+  function editable(node){
+    if(!node||!node.closest)return null;
+    try{return node.closest(EDITABLE);}catch(_){return null;}
+  }
+  function editableFromPoint(pxX,pxY){
+    const dpr=Math.max(1,Number(window.devicePixelRatio)||1),vv=window.visualViewport;
+    const offsetX=vv?Number(vv.offsetLeft)||0:0,offsetY=vv?Number(vv.offsetTop)||0:0;
+    const points=[[pxX/dpr+offsetX,pxY/dpr+offsetY],[pxX+offsetX,pxY+offsetY]];
+    for(const [x,y] of points){
+      const stack=typeof document.elementsFromPoint==="function"?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
+      for(const e of stack||[]){const hit=editable(e);if(hit)return hit;}
+    }
+    return null;
+  }
   function interactive(node){
     if(!node||!node.closest)return null;
     const target=node.closest(INTERACTIVE);
@@ -159,7 +175,18 @@
   function nativeTap(pxX,pxY){
     lastNativeX=Number(pxX)||0;
     lastNativeY=Number(pxY)||0;
+    const editableHit=editableFromPoint(lastNativeX,lastNativeY);
+    if(editableHit){
+      native("recordUiInteraction","native-skip:editable");
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      return false;
+    }
     const immediateLiveTarget=candidateFromPoint(lastNativeX,lastNativeY);
+    if(now()-lastEditableTouchAt<1200&&!immediateLiveTarget){
+      native("recordUiInteraction","native-skip:editable-tail");
+      return false;
+    }
     if(now()<nativeSuppressedUntil&&!isCloseTarget(immediateLiveTarget)){
       native("recordUiInteraction","native-skip:dom-transition");
       return false;
@@ -263,12 +290,33 @@
   },true);
 
   document.addEventListener("touchstart",event=>{
+    if(editable(event.target)){
+      lastEditableTouchAt=now();
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      return;
+    }
     rememberPhysicalTarget(event.target);
   },true);
 
   document.addEventListener("pointerdown",event=>{
     if(event.pointerType&&event.pointerType!=="touch"&&event.pointerType!=="pen")return;
+    if(editable(event.target)){
+      lastEditableTouchAt=now();
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      return;
+    }
     rememberPhysicalTarget(event.target);
+  },true);
+
+  document.addEventListener("focusin",event=>{
+    if(editable(event.target)){
+      lastEditableTouchAt=now();
+      lastPhysicalTarget=null;
+      lastPhysicalTargetAt=0;
+      schedulePublish();
+    }
   },true);
 
   // Do not synthesize clicks from touchend/pointerup. Android/WebView already
@@ -283,10 +331,11 @@
   new MutationObserver(schedulePublish).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden","class","style"]});
   window.addEventListener("load",schedulePublish,{once:true});
   window.addEventListener("resize",schedulePublish);
+  if(window.visualViewport)window.visualViewport.addEventListener("resize",schedulePublish);
   setTimeout(schedulePublish,120);
 
   window.GhazalInteractionRescue={
-    VERSION:"2.4.0",
+    VERSION:"2.4.1",
     nativeTap,
     activateElement:target=>clickElement(target,"api"),
     activateDescriptor:id=>clickElement(targetByDescriptor(id),"descriptor"),
