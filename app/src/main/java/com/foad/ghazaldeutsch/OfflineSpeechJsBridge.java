@@ -22,11 +22,29 @@ final class OfflineSpeechJsBridge {
         if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             activity.runOnUiThread(() -> {
                 activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_OFFLINE_AUDIO);
-                activity.showToast("اجازه میکروفون را فعال کن؛ سپس یک‌بار دیگر «شروع صحبت» را بزن");
+                activity.showToast("برای تمرین گفتاری، اجازه میکروفون را فعال کن");
+                waitForPermission(activity, prompt, 0);
             });
             return;
         }
+        startGranted(activity);
+    }
 
+    private static void waitForPermission(MainActivity activity, String prompt, int attempt) {
+        if (activity == null || activity.isFinishing()) return;
+        if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startGranted(activity);
+            return;
+        }
+        if (attempt >= 30) {
+            send(activity, "window.onSpeechError && window.onSpeechError(" +
+                    JSONObject.quote("اجازه میکروفون فعال نشد") + ")");
+            return;
+        }
+        activity.getWindow().getDecorView().postDelayed(() -> waitForPermission(activity, prompt, attempt + 1), 500L);
+    }
+
+    private static void startGranted(MainActivity activity) {
         activity.stopSpeaking();
         OfflineGermanSpeechEngine engine;
         synchronized (ENGINES) {
