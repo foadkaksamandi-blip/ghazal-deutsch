@@ -113,20 +113,15 @@ test('speech recognition prefers on-device German and has a visible watchdog',()
   ]) assert.ok(main.includes(token),token);
 });
 
-test('Xiaomi speech path falls back to the system recognizer without triggering app relock',()=>{
-  const main=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/MainActivity.java'),'utf8');
+test('active speaking bridge is independent from Xiaomi and Android system speech services',()=>{
+  const bridge=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/AndroidBridge.java'),'utf8');
+  const offline=fs.readFileSync(path.join(ROOT,'app/src/main/java/com/foad/ghazaldeutsch/OfflineSpeechJsBridge.java'),'utf8');
   const manifest=fs.readFileSync(path.join(ROOT,'app/src/main/AndroidManifest.xml'),'utf8');
-  for(const token of [
-    'REQUEST_SYSTEM_SPEECH',
-    'isXiaomiFamily()',
-    'launchSystemSpeechFallback()',
-    'RecognizerIntent.ACTION_RECOGNIZE_SPEECH',
-    'startActivityForResult(intent, REQUEST_SYSTEM_SPEECH)',
-    '!speechFallbackActivityActive',
-    'getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)',
-    '2800L'
-  ]) assert.ok(main.includes(token),token);
-  assert.ok(manifest.includes('android.speech.action.RECOGNIZE_SPEECH'));
+  assert.ok(bridge.includes('OfflineSpeechJsBridge.start(activity, prompt)'));
+  assert.ok(offline.includes('OfflineGermanSpeechEngine'));
+  assert.ok(!manifest.includes('android.speech.action.RECOGNIZE_SPEECH'));
+  assert.ok(!manifest.includes('android.speech.RecognitionService'));
+  assert.ok(manifest.includes('android.permission.RECORD_AUDIO'));
 });
 
 test('physical-touch instrumentation covers onboarding navigation lesson modal and dynamic Stage 5/6 UI',()=>{
