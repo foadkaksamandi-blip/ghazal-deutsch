@@ -16,6 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -98,7 +99,7 @@ final class OfflineGermanSpeechEngine {
                         @Override public void onError(Exception exception) {
                             if (!isCurrent(current)) return;
                             String detail = exception == null ? "" : String.valueOf(exception.getMessage());
-                            String message = detail.toLowerCase().contains("microphone")
+                            String message = detail.toLowerCase(Locale.ROOT).contains("microphone")
                                     ? "میکروفون در اختیار برنامه دیگری است؛ آن را ببند و دوباره امتحان کن"
                                     : "موتور گفتار آفلاین نتوانست صدا را دریافت کند؛ دوباره امتحان کن";
                             finishWithError(current, callback, message);
