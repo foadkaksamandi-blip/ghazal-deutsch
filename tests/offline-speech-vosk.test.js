@@ -42,6 +42,16 @@ test('GHAZAL speaking uses bundled Vosk instead of Android system speech',()=>{
   assert.ok(!manifest.includes('android.permission.INTERNET'));
 });
 
+test('Vosk session cancels recorder thread before native recognizer teardown',()=>{
+  const engine=read('app/src/main/java/com/foad/ghazaldeutsch/OfflineGermanSpeechEngine.java');
+  const cancel=engine.indexOf('speechService.cancel()');
+  const shutdown=engine.indexOf('speechService.shutdown()');
+  const close=engine.indexOf('recognizer.close()');
+  assert.ok(cancel>=0,'speechService.cancel() missing');
+  assert.ok(shutdown>cancel,'SpeechService must be cancelled before recorder release');
+  assert.ok(close>shutdown,'Recognizer must close only after SpeechService is stopped and released');
+});
+
 test('offline German model is structurally validated before packaging',()=>{
   const gradle=read('app/build.gradle');
   assert.ok(gradle.includes('am/final.mdl'));
