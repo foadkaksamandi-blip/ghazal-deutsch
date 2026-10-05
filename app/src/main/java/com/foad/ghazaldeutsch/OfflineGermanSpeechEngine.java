@@ -220,6 +220,7 @@ final class OfflineGermanSpeechEngine {
 
     private void stopSessionLocked() {
         if (speechService != null) {
+            try { speechService.cancel(); } catch (Exception ignored) { }
             try { speechService.shutdown(); } catch (Exception ignored) { }
             speechService = null;
         }
