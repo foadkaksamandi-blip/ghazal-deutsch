@@ -119,7 +119,7 @@ jobs:
           PY
       - name: Build hardened non-debuggable QA APK
         run: gradle :app:assembleHardenedQa --stacktrace
-      - name: Verify hardened APK signature alignment permissions and payload
+      - name: Verify hardened APK signature alignment permissions and offline speech payload
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/hardenedQa/app-hardenedQa.apk"
@@ -141,9 +141,13 @@ jobs:
           unzip -l "$APK" | grep -q "assets/release14-final-core.js"
           unzip -l "$APK" | grep -q "assets/release14-final-ui.js"
           unzip -l "$APK" | grep -q "assets/security/asset-integrity.json"
+          unzip -l "$APK" | grep -q "assets/vosk-model-small-de-0.15/am/final.mdl"
+          unzip -l "$APK" | grep -q "assets/vosk-model-small-de-0.15/conf/mfcc.conf"
+          unzip -l "$APK" | grep -q "lib/.*/libvosk.so"
+          unzip -l "$APK" | grep -q "lib/.*/libjnidispatch.so"
           BYTES=$(stat -c%s "$APK")
-          test "$BYTES" -gt 300000
-          test "$BYTES" -lt 30000000
+          test "$BYTES" -gt 30000000
+          test "$BYTES" -lt 120000000
           sha256sum "$APK" | tee qa/apk-sha256.txt
       - name: Dry-run real production APK/AAB path with ephemeral validation key
         run: |
@@ -171,6 +175,8 @@ jobs:
           $ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 "$APK"
           ! $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | grep -q "application-debuggable"
           ! $ANDROID_HOME/build-tools/35.0.0/aapt dump permissions "$APK" | grep -q "android.permission.INTERNET"
+          unzip -l "$APK" | grep -q "assets/vosk-model-small-de-0.15/am/final.mdl"
+          unzip -l "$APK" | grep -q "lib/.*/libvosk.so"
           sha256sum "$APK" "$AAB" > qa/ci-production-path-sha256.txt
           rm -f "$KS"
       - name: Name Stage 8 candidate APK

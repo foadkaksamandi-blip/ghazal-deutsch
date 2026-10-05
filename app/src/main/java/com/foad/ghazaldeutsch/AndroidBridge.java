@@ -38,7 +38,7 @@ public final class AndroidBridge {
     @JavascriptInterface
     public void startSpeechRecognition(String prompt) {
         MainActivity activity = activityReference.get();
-        if (activity != null) activity.startSpeechRecognition(prompt);
+        if (activity != null) OfflineSpeechJsBridge.start(activity, prompt);
     }
 
     @JavascriptInterface
@@ -175,8 +175,7 @@ public final class AndroidBridge {
 
     @JavascriptInterface
     public boolean isSpeechRecognitionAvailable() {
-        MainActivity activity = activityReference.get();
-        return activity != null && activity.isSpeechRecognitionAvailable();
+        return OfflineGermanSpeechEngine.bundledModelExpected();
     }
 
     @JavascriptInterface
