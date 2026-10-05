@@ -151,6 +151,16 @@ final class OfflineGermanSpeechEngine {
         }
     }
 
+    private static void deleteRecursively(File file) throws IOException {
+        if (file == null || !file.exists()) return;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children == null) throw new IOException("Cannot list directory " + file.getAbsolutePath());
+            for (File child : children) deleteRecursively(child);
+        }
+        if (!file.delete() && file.exists()) throw new IOException("Cannot delete " + file.getAbsolutePath());
+    }
+
     private static void copyAssetTree(AssetManager assets, String assetPath, File destination) throws IOException {
         String[] children = assets.list(assetPath);
         if (children == null) throw new IOException("Cannot list asset " + assetPath);
