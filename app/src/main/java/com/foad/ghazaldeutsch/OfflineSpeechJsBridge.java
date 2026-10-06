@@ -27,13 +27,13 @@ final class OfflineSpeechJsBridge {
             });
             return;
         }
-        startGranted(activity);
+        startGranted(activity, prompt);
     }
 
     private static void waitForPermission(MainActivity activity, String prompt, int attempt) {
         if (activity == null || activity.isFinishing()) return;
         if (activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            startGranted(activity);
+            startGranted(activity, prompt);
             return;
         }
         if (attempt >= 30) {
@@ -44,7 +44,7 @@ final class OfflineSpeechJsBridge {
         activity.getWindow().getDecorView().postDelayed(() -> waitForPermission(activity, prompt, attempt + 1), 500L);
     }
 
-    private static void startGranted(MainActivity activity) {
+    private static void startGranted(MainActivity activity, String prompt) {
         activity.stopSpeaking();
         OfflineGermanSpeechEngine engine;
         synchronized (ENGINES) {
@@ -55,7 +55,7 @@ final class OfflineSpeechJsBridge {
             }
         }
 
-        engine.start(new OfflineGermanSpeechEngine.Callback() {
+        engine.start(prompt, new OfflineGermanSpeechEngine.Callback() {
             @Override public void onState(String state, String message) {
                 send(activity, "window.onSpeechState && window.onSpeechState(" +
                         JSONObject.quote(state == null ? "" : state) + "," +
