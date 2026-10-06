@@ -52,6 +52,18 @@ test('Vosk session cancels recorder thread before native recognizer teardown',()
   assert.ok(close>shutdown,'Recognizer must close only after SpeechService is stopped and released');
 });
 
+test('Vosk keeps listening across sentence pauses and scores the complete utterance',()=>{
+  const engine=read('app/src/main/java/com/foad/ghazaldeutsch/OfflineGermanSpeechEngine.java');
+  assert.ok(engine.includes('final StringBuilder transcript = new StringBuilder()'));
+  assert.ok(engine.includes('appendSegment(text)'));
+  assert.ok(engine.includes('شنیدم تا اینجا'));
+  const onResultStart=engine.indexOf('@Override public void onResult(String hypothesis)');
+  const onFinalStart=engine.indexOf('@Override public void onFinalResult(String hypothesis)');
+  const onResultBlock=engine.slice(onResultStart,onFinalStart);
+  assert.ok(!onResultBlock.includes('finishWithResult('),'intermediate silence must not finish the speech session');
+  assert.ok(engine.includes('String complete = combined(lastPartial[0])'));
+});
+
 test('offline German model is structurally validated before packaging',()=>{
   const gradle=read('app/build.gradle');
   assert.ok(gradle.includes('am/final.mdl'));
