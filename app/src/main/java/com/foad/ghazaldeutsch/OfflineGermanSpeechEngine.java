@@ -17,9 +17,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -73,12 +73,15 @@ final class OfflineGermanSpeechEngine {
     private void prepareAndListen(int current, String hint, Callback callback) {
         try {
             Model readyModel = ensureModel(callback);
-            String grammar = grammarForHint(hint);
+            boolean lessonMode = hasLessonHint(hint);
             synchronized (lock) {
                 if (destroyed || current != generation) return;
-                recognizer = grammar == null
-                        ? new Recognizer(readyModel, SAMPLE_RATE)
-                        : new Recognizer(readyModel, SAMPLE_RATE, grammar);
+
+                // The small German 0.15 model is more reliable for natural multi-part
+                // sentences when we keep its full vocabulary graph. The lesson hint is
+                // used to rank N-best hypotheses instead of constraining the decoder.
+                recognizer = new Recognizer(readyModel, SAMPLE_RATE);
+                if (lessonMode) recognizer.setMaxAlternatives(5);
                 recognizer.setWords(true);
                 recognizer.setPartialWords(true);
                 speechService = new SpeechService(recognizer, SAMPLE_RATE);
@@ -86,9 +89,9 @@ final class OfflineGermanSpeechEngine {
             main.post(() -> {
                 synchronized (lock) {
                     if (destroyed || current != generation || speechService == null) return;
-                    callback.onState("ready", grammar == null
-                            ? "تشخیص گفتار آفلاین آماده است؛ شروع کن"
-                            : "تشخیص آفلاین برای الگوی همین درس آماده است؛ شروع کن");
+                    callback.onState("ready", lessonMode
+                            ? "تشخیص آفلاین کامل با الگوی همین درس آماده است؛ شروع کن"
+                            : "تشخیص گفتار آفلاین آماده است؛ شروع کن");
                     final StringBuilder transcript = new StringBuilder();
                     final String[] lastPartial = new String[]{""};
                     boolean started = speechService.startListening(new RecognitionListener() {
@@ -116,7 +119,7 @@ final class OfflineGermanSpeechEngine {
 
                         @Override public void onResult(String hypothesis) {
                             if (!isCurrent(current)) return;
-                            String text = jsonText(hypothesis, "text");
+                            String text = bestText(hypothesis, hint);
                             if (text.isEmpty()) return;
                             appendSegment(text);
                             lastPartial[0] = "";
@@ -125,7 +128,7 @@ final class OfflineGermanSpeechEngine {
 
                         @Override public void onFinalResult(String hypothesis) {
                             if (!isCurrent(current)) return;
-                            String text = jsonText(hypothesis, "text");
+                            String text = bestText(hypothesis, hint);
                             appendSegment(text);
                             String complete = transcript.toString().trim();
                             if (!complete.isEmpty()) finishWithResult(current, callback, complete);
@@ -159,11 +162,15 @@ final class OfflineGermanSpeechEngine {
         }
     }
 
-    private static String grammarForHint(String hint) {
-        if (hint == null || !hint.startsWith(HINT_PREFIX)) return null;
-        String raw = hint.substring(HINT_PREFIX.length()).trim();
-        if (raw.isEmpty()) return null;
+    private static boolean hasLessonHint(String hint) {
+        return hint != null && hint.startsWith(HINT_PREFIX) && !hint.substring(HINT_PREFIX.length()).trim().isEmpty();
+    }
 
+    private static List<String> hintAnchors(String hint) {
+        List<String> anchors = new ArrayList<>();
+        if (!hasLessonHint(hint)) return anchors;
+
+        String raw = hint.substring(HINT_PREFIX.length()).trim();
         String prepared = raw.toLowerCase(Locale.GERMAN)
                 .replace('…', ' ')
                 .replaceAll("\\.{2,}", " / ")
@@ -171,26 +178,81 @@ final class OfflineGermanSpeechEngine {
                 .replaceAll("\\s+", " ")
                 .trim();
 
-        Set<String> phrases = new LinkedHashSet<>();
         for (String part : prepared.split("/")) {
-            String clean = part.replaceAll("\\s+", " ").trim();
-            if (clean.isEmpty()) continue;
-            phrases.add(clean);
+            String clean = normalizeGerman(part);
+            if (!clean.isEmpty() && clean.split(" ").length >= 2) anchors.add(clean);
+        }
+        return anchors;
+    }
 
-            String[] words = clean.split(" ");
-            if (words.length >= 2) {
-                phrases.add(words[0] + " " + words[1]);
-            }
-            if (words.length >= 3) {
-                phrases.add(words[0] + " " + words[1] + " " + words[2]);
+    private static String normalizeGerman(String value) {
+        if (value == null) return "";
+        return value.toLowerCase(Locale.GERMAN)
+                .replace("ß", "ss")
+                .replaceAll("[^\\p{L}\\p{N}äöü ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static int orderedAnchorMatches(String text, List<String> anchors) {
+        if (anchors.isEmpty()) return 0;
+        String normalized = normalizeGerman(text);
+        int cursor = 0;
+        int matched = 0;
+        for (String anchor : anchors) {
+            int at = normalized.indexOf(anchor, cursor);
+            if (at < 0) continue;
+            matched++;
+            cursor = at + anchor.length();
+        }
+        return matched;
+    }
+
+    private static int anchorTokenOverlap(String text, List<String> anchors) {
+        String normalized = " " + normalizeGerman(text) + " ";
+        int overlap = 0;
+        for (String anchor : anchors) {
+            for (String token : anchor.split(" ")) {
+                if (!token.isEmpty() && normalized.contains(" " + token + " ")) overlap++;
             }
         }
-        if (phrases.isEmpty()) return null;
+        return overlap;
+    }
 
-        JSONArray grammar = new JSONArray();
-        for (String phrase : phrases) grammar.put(phrase);
-        grammar.put("[unk]");
-        return grammar.toString();
+    private static double lessonRelevance(String text, String hint, double confidence) {
+        List<String> anchors = hintAnchors(hint);
+        if (anchors.isEmpty()) return confidence;
+        return orderedAnchorMatches(text, anchors) * 1000.0
+                + anchorTokenOverlap(text, anchors) * 20.0
+                + confidence;
+    }
+
+    private static String bestText(String hypothesis, String hint) {
+        if (hypothesis == null || hypothesis.trim().isEmpty()) return "";
+        try {
+            JSONObject root = new JSONObject(hypothesis);
+            String direct = root.optString("text", "").trim();
+            JSONArray alternatives = root.optJSONArray("alternatives");
+            if (alternatives == null || alternatives.length() == 0) return direct;
+
+            String best = direct;
+            double bestScore = direct.isEmpty() ? Double.NEGATIVE_INFINITY : lessonRelevance(direct, hint, 0.0);
+            for (int i = 0; i < alternatives.length(); i++) {
+                JSONObject alternative = alternatives.optJSONObject(i);
+                if (alternative == null) continue;
+                String text = alternative.optString("text", "").trim();
+                if (text.isEmpty()) continue;
+                double confidence = alternative.optDouble("confidence", 0.0);
+                double score = lessonRelevance(text, hint, confidence);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = text;
+                }
+            }
+            return best;
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private Model ensureModel(Callback callback) throws IOException {
