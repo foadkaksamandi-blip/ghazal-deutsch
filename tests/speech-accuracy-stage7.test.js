@@ -6,7 +6,7 @@ const path=require('node:path');
 const ROOT=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 
-test('Stage 7 passes visible lesson target into offline Vosk grammar',()=>{
+test('Stage 7 passes visible lesson target into offline full-model ranking',()=>{
   const index=read('app/src/main/assets/index.html');
   const ui=read('app/src/main/assets/speech-accuracy-stage7.js');
   const bridge=read('app/src/main/java/com/foad/ghazaldeutsch/OfflineSpeechJsBridge.java');
@@ -18,9 +18,11 @@ test('Stage 7 passes visible lesson target into offline Vosk grammar',()=>{
   assert.ok(ui.includes('event.stopImmediatePropagation()'));
   assert.ok(bridge.includes('engine.start(prompt, new OfflineGermanSpeechEngine.Callback()'));
   assert.ok(engine.includes('private static final String HINT_PREFIX = "GHZ_HINT|"'));
-  assert.ok(engine.includes('grammarForHint(hint)'));
-  assert.ok(engine.includes('new Recognizer(readyModel, SAMPLE_RATE, grammar)'));
-  assert.ok(engine.includes('grammar.put("[unk]")'));
+  assert.ok(engine.includes('recognizer = new Recognizer(readyModel, SAMPLE_RATE);'));
+  assert.ok(engine.includes('recognizer.setMaxAlternatives(5)'));
+  assert.ok(engine.includes('bestText(hypothesis, hint)'));
+  assert.ok(engine.includes('lessonRelevance(text, hint, confidence)'));
+  assert.ok(!engine.includes('new Recognizer(readyModel, SAMPLE_RATE, grammar)'));
 });
 
 test('template speaking score requires contiguous anchors in the expected order',()=>{
@@ -72,7 +74,16 @@ test('known false-positive transcript can no longer satisfy both lesson anchors'
   assert.deepEqual(matchedAnchorsInOrder('ich komme aus iran ich heiße ghazal',anchors),['ich heiße']);
 });
 
-test('lesson bias keeps the crash-safe Vosk shutdown order',()=>{
+test('lesson mode ranks N-best full-model hypotheses by ordered scaffold relevance',()=>{
+  const engine=read('app/src/main/java/com/foad/ghazaldeutsch/OfflineGermanSpeechEngine.java');
+  assert.ok(engine.includes('private static int orderedAnchorMatches(String text, List<String> anchors)'));
+  assert.ok(engine.includes('private static int anchorTokenOverlap(String text, List<String> anchors)'));
+  assert.ok(engine.includes('orderedAnchorMatches(text, anchors) * 1000.0'));
+  assert.ok(engine.includes('alternative.optDouble("confidence", 0.0)'));
+  assert.ok(engine.includes('JSONArray alternatives = root.optJSONArray("alternatives")'));
+});
+
+test('lesson speech keeps the crash-safe Vosk shutdown order',()=>{
   const engine=read('app/src/main/java/com/foad/ghazaldeutsch/OfflineGermanSpeechEngine.java');
   const cancel=engine.indexOf('speechService.cancel()');
   const shutdown=engine.indexOf('speechService.shutdown()');
