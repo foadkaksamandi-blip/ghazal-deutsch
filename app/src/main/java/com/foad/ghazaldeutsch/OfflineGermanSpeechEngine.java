@@ -5,6 +5,7 @@ import android.content.res.AssetManager;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.vosk.Model;
 import org.vosk.Recognizer;
@@ -16,7 +17,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,6 +32,7 @@ final class OfflineGermanSpeechEngine {
 
     private static final String MODEL_ASSET = "vosk-model-small-de-0.15";
     private static final String MODEL_VERSION = "de-small-0.15";
+    private static final String HINT_PREFIX = "GHZ_HINT|";
     private static final float SAMPLE_RATE = 16000.0f;
     private static final int LISTEN_TIMEOUT_MS = 9000;
 
@@ -48,6 +52,10 @@ final class OfflineGermanSpeechEngine {
     }
 
     void start(Callback callback) {
+        start("", callback);
+    }
+
+    void start(String hint, Callback callback) {
         final int current;
         synchronized (lock) {
             if (destroyed) {
@@ -59,15 +67,18 @@ final class OfflineGermanSpeechEngine {
             stopSessionLocked();
         }
         callback.onState("preparing", "موتور آفلاین آلمانی در حال آماده‌شدن…");
-        worker.execute(() -> prepareAndListen(current, callback));
+        worker.execute(() -> prepareAndListen(current, hint, callback));
     }
 
-    private void prepareAndListen(int current, Callback callback) {
+    private void prepareAndListen(int current, String hint, Callback callback) {
         try {
             Model readyModel = ensureModel(callback);
+            String grammar = grammarForHint(hint);
             synchronized (lock) {
                 if (destroyed || current != generation) return;
-                recognizer = new Recognizer(readyModel, SAMPLE_RATE);
+                recognizer = grammar == null
+                        ? new Recognizer(readyModel, SAMPLE_RATE)
+                        : new Recognizer(readyModel, SAMPLE_RATE, grammar);
                 recognizer.setWords(true);
                 recognizer.setPartialWords(true);
                 speechService = new SpeechService(recognizer, SAMPLE_RATE);
@@ -75,7 +86,9 @@ final class OfflineGermanSpeechEngine {
             main.post(() -> {
                 synchronized (lock) {
                     if (destroyed || current != generation || speechService == null) return;
-                    callback.onState("ready", "تشخیص گفتار آفلاین آماده است؛ شروع کن");
+                    callback.onState("ready", grammar == null
+                            ? "تشخیص گفتار آفلاین آماده است؛ شروع کن"
+                            : "تشخیص آفلاین برای الگوی همین درس آماده است؛ شروع کن");
                     final StringBuilder transcript = new StringBuilder();
                     final String[] lastPartial = new String[]{""};
                     boolean started = speechService.startListening(new RecognitionListener() {
@@ -144,6 +157,40 @@ final class OfflineGermanSpeechEngine {
                 finishWithError(current, callback, "موتور آفلاین آلمانی آماده نشد؛ نسخه برنامه را دوباره نصب کن");
             });
         }
+    }
+
+    private static String grammarForHint(String hint) {
+        if (hint == null || !hint.startsWith(HINT_PREFIX)) return null;
+        String raw = hint.substring(HINT_PREFIX.length()).trim();
+        if (raw.isEmpty()) return null;
+
+        String prepared = raw.toLowerCase(Locale.GERMAN)
+                .replace('…', ' ')
+                .replaceAll("\\.{2,}", " / ")
+                .replaceAll("[^\\p{L}\\p{N}äöüßÄÖÜ/\\- ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        Set<String> phrases = new LinkedHashSet<>();
+        for (String part : prepared.split("/")) {
+            String clean = part.replaceAll("\\s+", " ").trim();
+            if (clean.isEmpty()) continue;
+            phrases.add(clean);
+
+            String[] words = clean.split(" ");
+            if (words.length >= 2) {
+                phrases.add(words[0] + " " + words[1]);
+            }
+            if (words.length >= 3) {
+                phrases.add(words[0] + " " + words[1] + " " + words[2]);
+            }
+        }
+        if (phrases.isEmpty()) return null;
+
+        JSONArray grammar = new JSONArray();
+        for (String phrase : phrases) grammar.put(phrase);
+        grammar.put("[unk]");
+        return grammar.toString();
     }
 
     private Model ensureModel(Callback callback) throws IOException {
