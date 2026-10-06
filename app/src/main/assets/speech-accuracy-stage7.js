@@ -43,14 +43,36 @@
       .filter(x=>x&&x.split(" ").length>=2);
   }
 
-  function anchorMatched(heard,anchor){
-    const h=normalize(heard),a=normalize(anchor);
-    if(!h||!a)return false;
-    if(h.includes(a))return true;
-    const hw=new Set(h.split(" ").filter(Boolean));
-    const aw=a.split(" ").filter(Boolean);
-    if(!aw.length)return false;
-    return aw.filter(w=>hw.has(w)).length/aw.length>=0.85;
+  function speechTokens(value){
+    return normalize(value)
+      .split(" ")
+      .filter(word=>word&&word!=="unk");
+  }
+
+  function findContiguous(words,needle,from){
+    if(!needle.length||words.length<needle.length)return null;
+    for(let start=Math.max(0,from||0);start<=words.length-needle.length;start++){
+      let ok=true;
+      for(let i=0;i<needle.length;i++){
+        if(words[start+i]!==needle[i]){ok=false;break;}
+      }
+      if(ok)return{start,end:start+needle.length};
+    }
+    return null;
+  }
+
+  function matchedAnchorsInOrder(heard,anchors){
+    const words=speechTokens(heard);
+    const matched=[];
+    let cursor=0;
+    anchors.forEach(anchor=>{
+      const needle=speechTokens(anchor);
+      const hit=findContiguous(words,needle,cursor);
+      if(!hit)return;
+      matched.push(anchor);
+      cursor=hit.end;
+    });
+    return matched;
   }
 
   function withTemporaryTarget(ctx,value,fn){
@@ -79,7 +101,7 @@
     const ctx=visibleLesson();
     const anchors=ctx?templateAnchors(ctx.target):[];
     if(ctx&&anchors.length&&typeof previousSpeechResult==="function"){
-      const matched=anchors.filter(a=>anchorMatched(text,a));
+      const matched=matchedAnchorsInOrder(text,anchors);
       const canonicalTarget=anchors.join(" / ");
       const canonicalHeard=matched.length?matched.join(" / "):normalize(text);
       withTemporaryTarget(ctx,canonicalTarget,()=>previousSpeechResult(canonicalHeard));
