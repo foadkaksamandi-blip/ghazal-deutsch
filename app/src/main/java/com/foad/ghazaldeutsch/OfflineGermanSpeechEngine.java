@@ -76,23 +76,46 @@ final class OfflineGermanSpeechEngine {
                 synchronized (lock) {
                     if (destroyed || current != generation || speechService == null) return;
                     callback.onState("ready", "تشخیص گفتار آفلاین آماده است؛ شروع کن");
+                    final StringBuilder transcript = new StringBuilder();
+                    final String[] lastPartial = new String[]{""};
                     boolean started = speechService.startListening(new RecognitionListener() {
+                        private void appendSegment(String text) {
+                            String clean = text == null ? "" : text.trim();
+                            if (clean.isEmpty()) return;
+                            if (transcript.length() > 0) transcript.append(' ');
+                            transcript.append(clean);
+                        }
+
+                        private String combined(String tail) {
+                            String cleanTail = tail == null ? "" : tail.trim();
+                            if (transcript.length() == 0) return cleanTail;
+                            if (cleanTail.isEmpty()) return transcript.toString().trim();
+                            return (transcript.toString() + " " + cleanTail).trim();
+                        }
+
                         @Override public void onPartialResult(String hypothesis) {
                             if (!isCurrent(current)) return;
                             String partial = jsonText(hypothesis, "partial");
-                            if (!partial.isEmpty()) callback.onState("listening", "شنیدم: " + partial);
+                            lastPartial[0] = partial;
+                            String live = combined(partial);
+                            if (!live.isEmpty()) callback.onState("listening", "شنیدم: " + live);
                         }
 
                         @Override public void onResult(String hypothesis) {
                             if (!isCurrent(current)) return;
                             String text = jsonText(hypothesis, "text");
-                            if (!text.isEmpty()) finishWithResult(current, callback, text);
+                            if (text.isEmpty()) return;
+                            appendSegment(text);
+                            lastPartial[0] = "";
+                            callback.onState("listening", "شنیدم تا اینجا: " + transcript.toString().trim());
                         }
 
                         @Override public void onFinalResult(String hypothesis) {
                             if (!isCurrent(current)) return;
                             String text = jsonText(hypothesis, "text");
-                            if (!text.isEmpty()) finishWithResult(current, callback, text);
+                            appendSegment(text);
+                            String complete = transcript.toString().trim();
+                            if (!complete.isEmpty()) finishWithResult(current, callback, complete);
                             else finishWithError(current, callback, "صدایی به متن تبدیل نشد؛ دوباره واضح‌تر بگو");
                         }
 
@@ -107,7 +130,9 @@ final class OfflineGermanSpeechEngine {
 
                         @Override public void onTimeout() {
                             if (!isCurrent(current)) return;
-                            finishWithError(current, callback, "زمان شنیدن تمام شد؛ جمله را دوباره بگو");
+                            String complete = combined(lastPartial[0]);
+                            if (!complete.isEmpty()) finishWithResult(current, callback, complete);
+                            else finishWithError(current, callback, "زمان شنیدن تمام شد؛ جمله را دوباره بگو");
                         }
                     }, LISTEN_TIMEOUT_MS);
                     if (!started) finishWithError(current, callback, "میکروفون شروع نشد؛ دوباره امتحان کن");
