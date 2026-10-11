@@ -3,8 +3,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 
-const assets=path.join(__dirname,'..','app','src','main','assets');
+const root=path.join(__dirname,'..');
+const assets=path.join(root,'app','src','main','assets');
 const read=name=>fs.readFileSync(path.join(assets,name),'utf8');
+const readWeb=name=>fs.readFileSync(path.join(root,'web',name),'utf8');
 
 test('PWA manifest is installable and offline-first scoped',()=>{
   const manifest=JSON.parse(read('manifest.webmanifest'));
@@ -23,8 +25,9 @@ test('index advertises PWA and Apple install metadata without blocking zoom',()=
   assert.doesNotMatch(html,/user-scalable=no/);
 });
 
-test('service worker precaches the educational shell and preserves API honesty offline',()=>{
-  const sw=read('sw.js');
+test('service worker is web-only, precaches educational shell and preserves API honesty offline',()=>{
+  assert.equal(fs.existsSync(path.join(assets,'sw.js')),false,'network-capable service worker must never ship inside Android assets');
+  const sw=readWeb('sw.js');
   for(const asset of ['/index.html','/app.js','/course-data.js','/stage5-exams-pathways.js','/stage6-profiles-classes.js','/pwa-runtime.js']){
     assert.ok(sw.includes(JSON.stringify(asset)),`missing ${asset}`);
   }
@@ -41,8 +44,7 @@ test('web runtime exposes platform capabilities and does not claim native offlin
 });
 
 test('cross-platform files contain no placeholder markers',()=>{
-  for(const name of ['manifest.webmanifest','pwa-runtime.js','sw.js']){
-    const text=read(name);
-    assert.doesNotMatch(text,/TODO|FIXME|placeholder/i,`${name} contains placeholder text`);
+  for(const text of [read('manifest.webmanifest'),read('pwa-runtime.js'),readWeb('sw.js')]){
+    assert.doesNotMatch(text,/TODO|FIXME|placeholder/i,'cross-platform source contains placeholder text');
   }
 });
