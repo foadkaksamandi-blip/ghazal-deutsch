@@ -1,0 +1,28 @@
+{
+  "name": "GHAZAL — آموزش زبان آلمانی",
+  "short_name": "GHAZAL",
+  "description": "Offline-first German learning from A1 to C2 for Persian speakers, migration, study, work and exams.",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#090909",
+  "theme_color": "#090909",
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/ghazal-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {"name": "مسیر یادگیری", "short_name": "مسیر", "url": "/?view=path"},
+    {"name": "تمرین", "short_name": "تمرین", "url": "/?view=practice"},
+    {"name": "مهاجرت", "short_name": "مهاجرت", "url": "/?view=migration"}
+  ]
+}
