@@ -82,7 +82,7 @@
 
   if(!window.GhazalAndroid){
     window.GhazalAndroid={
-      getAppVersion:()=>"web-14.1",
+      getAppVersion:()=>"web-14.0.2",
       speak:browserSpeak,
       stopSpeaking:()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();},
       startSpeechRecognition:browserSpeechRecognition
