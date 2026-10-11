@@ -34,9 +34,11 @@ jobs:
           npm run qa:product
           npm run qa:ui
 
-      - name: Verify static PWA shell over HTTP
+      - name: Verify static PWA shell and web-only service worker
         run: |
           set -euo pipefail
+          test ! -f app/src/main/assets/sw.js
+          grep -q 'ghazal-cross-platform-v1' web/sw.js
           cd app/src/main/assets
           python3 -m http.server 4173 >/tmp/ghazal-pwa-http.log 2>&1 &
           PID=$!
@@ -44,7 +46,6 @@ jobs:
           sleep 2
           curl --fail http://127.0.0.1:4173/index.html | grep -q 'manifest.webmanifest'
           curl --fail http://127.0.0.1:4173/manifest.webmanifest | grep -q '"short_name": "GHAZAL"'
-          curl --fail http://127.0.0.1:4173/sw.js | grep -q 'ghazal-cross-platform-v1'
           curl --fail http://127.0.0.1:4173/pwa-runtime.js | grep -q 'nativeOfflineSpeech:android'
 
       - name: Browser UI smoke
