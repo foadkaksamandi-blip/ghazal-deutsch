@@ -1,0 +1,52 @@
+name: GHAZAL Cross-Platform PWA Gate
+
+on:
+  push:
+    branches: [ghazal-cross-platform-v1, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Syntax and product tests
+        run: |
+          npm run check
+          npm test
+          npm run qa:cross-platform
+          npm run qa:product
+          npm run qa:ui
+
+      - name: Verify static PWA shell and web-only service worker
+        run: |
+          set -euo pipefail
+          test ! -f app/src/main/assets/sw.js
+          grep -q 'ghazal-cross-platform-v1' web/sw.js
+          cd app/src/main/assets
+          python3 -m http.server 4173 >/tmp/ghazal-pwa-http.log 2>&1 &
+          PID=$!
+          trap 'kill $PID || true' EXIT
+          sleep 2
+          curl --fail http://127.0.0.1:4173/index.html | grep -q 'manifest.webmanifest'
+          curl --fail http://127.0.0.1:4173/manifest.webmanifest | grep -q '"short_name": "GHAZAL"'
+          curl --fail http://127.0.0.1:4173/pwa-runtime.js | grep -q 'nativeOfflineSpeech:android'
+
+      - name: Browser UI smoke
+        run: npm run qa:browser

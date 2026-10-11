@@ -2,7 +2,25 @@
   "version": 2,
   "rewrites": [
     { "source": "/healthz", "destination": "/api?route=healthz" },
-    { "source": "/v1/:path*", "destination": "/api?route=v1/:path*" }
+    { "source": "/v1/:path*", "destination": "/api?route=v1/:path*" },
+    { "source": "/sw.js", "destination": "/web/sw.js" },
+    { "source": "/", "destination": "/app/src/main/assets/index.html" },
+    { "source": "/:path*", "destination": "/app/src/main/assets/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" }
+      ]
+    }
   ],
   "functions": { "api/index.js": { "maxDuration": 30 } }
 }
