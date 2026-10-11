@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/healthz", "destination": "/api?route=healthz" },
     { "source": "/v1/:path*", "destination": "/api?route=v1/:path*" },
+    { "source": "/sw.js", "destination": "/web/sw.js" },
     { "source": "/", "destination": "/app/src/main/assets/index.html" },
     { "source": "/:path*", "destination": "/app/src/main/assets/:path*" }
   ],
