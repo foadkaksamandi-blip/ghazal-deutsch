@@ -20,7 +20,7 @@ def versionEpoch = java.time.LocalDate.of(2020, 1, 1)
 def autoVersionCode = (java.time.temporal.ChronoUnit.DAYS.between(versionEpoch, utcNow.toLocalDate()) * 86400L
         + utcNow.getHour() * 3600L + utcNow.getMinute() * 60L + utcNow.getSecond()) as int
 def ghzVersionCode = explicitVersionCode ? Integer.parseInt(String.valueOf(explicitVersionCode)) : autoVersionCode
-def ghzVersionName = String.valueOf(project.findProperty("GHZ_VERSION_NAME") ?: System.getenv("GHZ_VERSION_NAME") ?: "14.1.0")
+def ghzVersionName = String.valueOf(project.findProperty("GHZ_VERSION_NAME") ?: System.getenv("GHZ_VERSION_NAME") ?: "14.0.2")
 
 def voskModelName = "vosk-model-small-de-0.15"
 def voskModelUrl = "https://alphacephei.com/vosk/models/${voskModelName}.zip"
